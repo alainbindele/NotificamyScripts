@@ -35,7 +35,7 @@ while IFS='|||' read -r id prompt cron_params next_execution created_at; do
     aws sqs send-message \
         --queue-url "$SQS_URL" \
         --message-body "{\"query_id\": $id, \"prompt\": \"${prompt//\"/\\\"}\"}"
-
+	--message-group-id "$id"
     # Decidi base_time
     if [[ "$next_execution" == "NULL" || -z "$next_execution" ]]; then
         base_time="$created_at"
