@@ -8,9 +8,9 @@ SQS_URL="https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fif
 
 # Recupera le query da eseguire (incluso quelle con next_execution NULL)
 queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e \
-"SELECT id, prompt, cron_params, next_execution, created_at
- FROM queries
- WHERE is_valid = 1 AND (next_execution <= NOW() OR next_execution IS NULL);")
+"SELECT id, prompt, cron_params, next_execution, created_at 
+ FROM queries 
+WHERE is_valid = 1 AND (next_execution <= NOW() OR next_execution IS NULL);" | sed 's/\t/|||/g')
 
 # Funzione per calcolare il prossimo execution timestamp
 calculate_next_execution() {
@@ -27,7 +27,8 @@ print(it.get_next(datetime).strftime('%Y-%m-%d %H:%M:%S'))
 }
 
 # Loop riga per riga
-while IFS=$'\t' read -r id prompt cron_params next_execution created_at; do
+while IFS='|||' read -r id prompt cron_params next_execution created_at; do
+
     echo "▶️  Eseguo Query ID $id: $prompt"
 
     # Invia a SQS
