@@ -27,7 +27,12 @@ print(it.get_next(datetime).strftime('%Y-%m-%d %H:%M:%S'))
 }
 
 # Loop riga per riga
-while IFS='|||' read -r id prompt cron_params next_execution created_at; do
+hile IFS= read -r line; do
+    id=$(echo "$line" | cut -d '|' -f1)
+    prompt=$(echo "$line" | cut -d '|' -f4)   # prompt è il campo 4 (perché ogni ||| è 3 pipe)
+    cron_params=$(echo "$line" | cut -d '|' -f7)
+    next_execution=$(echo "$line" | cut -d '|' -f10)
+    created_at=$(echo "$line" | cut -d '|' -f13)
 
     echo "▶️  Eseguo Query ID $id: $prompt"
 
