@@ -6,24 +6,28 @@ DB_PASS=$MYSQL_PASS
 DB_NAME="NotifyMeDB"
 SQS_URL="https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo"
 
-# Recupera le query da eseguire
+# Recupera le query da eseguire (incluso quelle con next_execution NULL)
 queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e \
-"SELECT id, prompt, cron_params FROM queries WHERE is_valid = 1 AND next_execution <= NOW();")
+"SELECT id, prompt, cron_params, next_execution, created_at
+ FROM queries
+ WHERE is_valid = 1 AND (next_execution <= NOW() OR next_execution IS NULL);")
 
-# Funzione per calcolare il next_execution con Python
+# Funzione per calcolare il prossimo execution timestamp
 calculate_next_execution() {
   local cron_expr="$1"
+  local base_time="$2"
+
   python3 -c "
 from croniter import croniter
 from datetime import datetime
-base = datetime.now()
+base = datetime.strptime('$base_time', '%Y-%m-%d %H:%M:%S')
 it = croniter('$cron_expr', base)
 print(it.get_next(datetime).strftime('%Y-%m-%d %H:%M:%S'))
 "
 }
 
-# Loop sulle query da eseguire
-while IFS=$'\t' read -r id prompt cron_params; do
+# Loop riga per riga
+while IFS=$'\t' read -r id prompt cron_params next_execution created_at; do
     echo "▶️  Eseguo Query ID $id: $prompt"
 
     # Invia a SQS
@@ -31,12 +35,18 @@ while IFS=$'\t' read -r id prompt cron_params; do
         --queue-url "$SQS_URL" \
         --message-body "{\"query_id\": $id, \"prompt\": \"${prompt//\"/\\\"}\"}"
 
-    # Calcola next_execution
-    next_execution=$(calculate_next_execution "$cron_params")
-    echo "⏭  Prossima esecuzione → $next_execution"
+    # Decidi base_time
+    if [[ "$next_execution" == "NULL" || -z "$next_execution" ]]; then
+        base_time="$created_at"
+    else
+        base_time="$next_execution"
+    fi
 
-    # Aggiorna in MySQL
+    # Calcola la nuova next_execution a partire da base_time
+    next_execution_new=$(calculate_next_execution "$cron_params" "$base_time")
+    echo "⏭  Nuova next_execution → $next_execution_new"
+
+    # Aggiorna la nuova next_execution nel DB
     mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
-    "UPDATE queries SET next_execution = '$next_execution' WHERE id = $id;"
+    "UPDATE queries SET next_execution = '$next_execution_new' WHERE id = $id;"
 done <<< "$queries"
-
