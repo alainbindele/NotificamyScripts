@@ -27,7 +27,7 @@ print(it.get_next(datetime).strftime('%Y-%m-%d %H:%M:%S'))
 }
 
 # Loop riga per riga
-hile IFS= read -r line; do
+while IFS= read -r line; do
     id=$(echo "$line" | cut -d '|' -f1)
     prompt=$(echo "$line" | cut -d '|' -f4)   # prompt è il campo 4 (perché ogni ||| è 3 pipe)
     cron_params=$(echo "$line" | cut -d '|' -f7)
