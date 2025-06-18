@@ -1,10 +1,10 @@
 #!/bin/bash
 
-DB_HOST="localhost"
-DB_USER="root"
-DB_PASS="laTuaPassword"
+DB_HOST=$MYSQL_HOST
+DB_USER=$MYSQL_USER
+DB_PASS=$MYSQL_PASS
 DB_NAME="NotifyMeDB"
-SQS_URL="https://sqs.eu-west-1.amazonaws.com/xxx/notifyme-queue"
+SQS_URL="https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo"
 
 # Recupera le query da eseguire
 queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e \
