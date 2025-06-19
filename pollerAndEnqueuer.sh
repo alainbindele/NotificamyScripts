@@ -12,19 +12,29 @@ queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e \
  FROM queries 
 WHERE is_valid = 1 AND (next_execution <= NOW() OR next_execution IS NULL);" | sed 's/\t/|||/g')
 
-# Funzione per calcolare il prossimo execution timestamp
+
 calculate_next_execution() {
   local cron_expr="$1"
   local base_time="$2"
 
   python3 -c "
 from croniter import croniter
-from datetime import datetime
+from datetime import datetime, timedelta
+
 base = datetime.strptime('$base_time', '%Y-%m-%d %H:%M:%S')
 it = croniter('$cron_expr', base)
-print(it.get_next(datetime).strftime('%Y-%m-%d %H:%M:%S'))
+
+next_execution = it.get_next(datetime)
+
+# Continua a iterare finché non otteniamo una data futura rispetto a ora
+now = datetime.now()
+while next_execution <= now:
+    next_execution = it.get_next(datetime)
+
+print(next_execution.strftime('%Y-%m-%d %H:%M:%S'))
 "
 }
+
 
 # Loop riga per riga
 while IFS= read -r line; do
