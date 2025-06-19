@@ -28,9 +28,12 @@ export MYSQL_PWD="$DB_PASS"
 
 # Fetch queries that are due for execution or have no next_execution set
 queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -D "$DB_NAME" -N -e \
-"SELECT id, prompt, cron_params, next_execution, created_at
- FROM queries
- WHERE is_valid = 1 AND (next_execution <= NOW() OR next_execution IS NULL);" | sed 's/\t/|||/g')
+"SELECT q.id, q.prompt, q.cron_params, q.next_execution, q.created_at, u.email
+ FROM queries ad q, users as u
+ WHERE q.is_valid = 1
+ AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
+ AND q.user_id = u.id
+ ;" | sed 's/\t/|||/g')
 
 # Function that computes the next execution time from a cron expression and a base time
 calculate_next_execution() {
@@ -62,13 +65,14 @@ while IFS= read -r line; do
     cron_params=$(echo "$line" | cut -d '|' -f7)
     next_execution=$(echo "$line" | cut -d '|' -f10)
     created_at=$(echo "$line" | cut -d '|' -f13)
+    user_email=$(echo "$line" | cut -d '|' -f16)
 
     echo "▶️  Executing Query ID $id: $prompt"
 
     # Send the prompt to AWS SQS queue
     aws sqs send-message \
         --queue-url "$SQS_URL" \
-        --message-body "{\"query_id\": $id, \"prompt\": \"$prompt\"}" \
+        --message-body "{\"query_id\": $id,\"user_email\":$user_email , \"prompt\": \"$prompt\"}" \
         --message-group-id "`date +%s`"
 
     # Determine the base time for next execution calculation
