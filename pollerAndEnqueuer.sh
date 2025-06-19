@@ -29,7 +29,7 @@ export MYSQL_PWD="$DB_PASS"
 # Fetch queries that are due for execution or have no next_execution set
 queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -D "$DB_NAME" -N -e \
 "SELECT q.id, q.prompt, q.cron_params, q.next_execution, q.created_at, u.email
- FROM queries ad q, users as u
+ FROM queries as q, users as u
  WHERE q.is_valid = 1
  AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
  AND q.user_id = u.id
