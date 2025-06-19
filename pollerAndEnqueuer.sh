@@ -64,8 +64,8 @@ while IFS= read -r line; do
     next_execution=$(echo "$line" | cut -d '|' -f10)
     created_at=$(echo "$line" | cut -d '|' -f13)
     user_email=$(echo "$line" | cut -d '|' -f16)
-
-    echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
+# Check that id is a number, prompt and email are not empty
+  if [[ "$id" =~ ^[0-9]+$ && -n "$prompt" && -n "$user_email" ]]; then    echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
 
     # Send the prompt to AWS SQS queue
     aws sqs send-message \
@@ -87,6 +87,7 @@ while IFS= read -r line; do
     # Update the query with the new next_execution timestamp
     mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
     "UPDATE queries SET next_execution = '$next_execution_new' WHERE id = $id;"
+  fi
 done <<< "$queries"
 
 
