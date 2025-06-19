@@ -23,9 +23,11 @@ DB_USER=$MYSQL_USER
 DB_PASS=$MYSQL_PASS
 DB_NAME="NotifyMeDB"
 SQS_URL="https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo"
+export MYSQL_PWD="$DB_PASS"
+
 
 # Fetch queries that are due for execution or have no next_execution set
-queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -N -e \
+queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -D "$DB_NAME" -N -e \
 "SELECT id, prompt, cron_params, next_execution, created_at
  FROM queries
  WHERE is_valid = 1 AND (next_execution <= NOW() OR next_execution IS NULL);" | sed 's/\t/|||/g')
