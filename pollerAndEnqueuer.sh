@@ -15,12 +15,11 @@ WHERE is_valid = 1 AND (next_execution <= NOW() OR next_execution IS NULL);" | s
 # Funzione per calcolare il prossimo execution timestamp
 calculate_next_execution() {
   local cron_expr="$1"
-  local base_time="$2"
 
   python3 -c "
 from croniter import croniter
 from datetime import datetime
-base = datetime.strptime('$base_time', '%Y-%m-%d %H:%M:%S')
+base = datetime.now()
 it = croniter('$cron_expr', base)
 print(it.get_next(datetime).strftime('%Y-%m-%d %H:%M:%S'))
 "
@@ -34,7 +33,7 @@ while IFS= read -r line; do
     next_execution=$(echo "$line" | cut -d '|' -f10)
     created_at=$(echo "$line" | cut -d '|' -f13)
 
-    echo "▶️  Eseguo Query ID $id: $prompt"
+    echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
 
     # Invia a SQS
     aws sqs send-message \
@@ -51,7 +50,7 @@ while IFS= read -r line; do
 
     # Calcola la nuova next_execution a partire da base_time
     next_execution_new=$(calculate_next_execution "$cron_params" "$base_time")
-    echo "⏭  Nuova next_execution → $next_execution_new"
+    echo "`date` - ⏭  Nuova next_execution → $next_execution_new"
 
     # Aggiorna la nuova next_execution nel DB
     mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
