@@ -3,7 +3,7 @@
 DB_HOST=$MYSQL_HOST
 DB_USER=$MYSQL_USER
 DB_PASS=$MYSQL_PASS
-DB_NAME="NotifyMeDB"
+DB_NAME="NotificamyDB"
 SQS_URL="https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo"
 
 # Recupera le query da eseguire (incluso quelle con next_execution NULL)
