@@ -28,7 +28,7 @@ export MYSQL_PWD="$DB_PASS"
 
 # Fetch queries that are due for execution or have no next_execution set
 queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -D "$DB_NAME" -N -e \
-"SELECT q.id, q.prompt, q.cron_params, q.next_execution, q.created_at, u.email
+"SELECT q.id, q.prompt, q.cron_params, q.next_execution, q.created_at, u.email, u.discord_webhook, u.slack_webhook, u.phone
  FROM queries as q, users as u
  WHERE q.is_valid = 1
  AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
@@ -64,13 +64,16 @@ while IFS= read -r line; do
     next_execution=$(echo "$line" | cut -d '|' -f10)
     created_at=$(echo "$line" | cut -d '|' -f13)
     user_email=$(echo "$line" | cut -d '|' -f16)
+    user_discord_webhook=$(echo "$line" | cut -d '|' -f19)
+    user_slack_webhook=$(echo "$line" | cut -d '|' -f21)
+    user_phone=$(echo "$line" | cut -d '|' -f24)
 # Check that id is a number, prompt and email are not empty
-  if [[ "$id" =~ ^[0-9]+$ && -n "$prompt" && -n "$user_email" ]]; then    echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
+  if [[ "$id" =~ ^[0-9]+$ && -n "$prompt" ]]; then    echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
 
     # Send the prompt to AWS SQS queue
     aws sqs send-message \
         --queue-url "$SQS_URL" \
-        --message-body "{\"query_id\": $id,\"user_email\":$user_email , \"prompt\": \"$prompt\"}" \
+        --message-body "{\"query_id\": $id,\"user_email\":$user_email ,\"user_discord_webhook\":$user_user_discord_webhook ,\"user_slack_webhook\":$user_slack_webhook ,\"user_phone\":$user_phone , \"prompt\": \"$prompt\"}" \
         --message-group-id "`date +%s`"
 
     # Determine the base time for next execution calculation
