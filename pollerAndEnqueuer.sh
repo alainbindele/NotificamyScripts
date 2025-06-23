@@ -41,13 +41,13 @@ calculate_next_execution() {
 
   python3 -c "
 from croniter import croniter
-from datetime import datetime
-base = datetime.strptime('$base_time', '%Y-%m-%d %H:%M:%S')
+from datetime import datetime, timezone
+base = datetime.strptime('$base_time', '%Y-%m-%d %H:%M:%S').replace(tzinfo=timezone.utc)
 it = croniter('$cron_expr', base)
 next_execution = it.get_next(datetime)
 
 # Ensure the next execution time is in the future
-now = datetime.now()
+now = datetime.now(timezone.utc)
 while next_execution <= now:
     next_execution = it.get_next(datetime)
 
