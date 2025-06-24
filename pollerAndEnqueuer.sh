@@ -113,19 +113,24 @@ while IFS= read -r line; do
             --message-body "$json_message" \
             --message-group-id "`date +%s`"
 
-        # Determine the base time for next execution calculation
-        if [[ "$next_execution" == "NULL" || -z "$next_execution" ]]; then
-            base_time="$created_at"
+        # Only calculate next_execution if cron_params is set and not NULL
+        if [[ -n "$cron_params" && "$cron_params" != "NULL" ]]; then
+            # Determine the base time for next execution calculation
+            if [[ "$next_execution" == "NULL" || -z "$next_execution" ]]; then
+                base_time="$created_at"
+            else
+                base_time="$next_execution"
+            fi
+
+            # Compute the next execution time from the cron expression
+            next_execution_new=$(calculate_next_execution "$cron_params" "$base_time")
+            echo "`date` - ⏭  Nuova next_execution → $next_execution_new"
+
+            # Update the query with the new next_execution timestamp
+            mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
+            "UPDATE queries SET next_execution = '$next_execution_new' WHERE id = $id;"
         else
-            base_time="$next_execution"
+            echo "`date` - ⚠️  Nessun cron_params impostato per Query ID $id - non calcolo next_execution"
         fi
-
-        # Compute the next execution time from the cron expression
-        next_execution_new=$(calculate_next_execution "$cron_params" "$base_time")
-        echo "`date` - ⏭  Nuova next_execution → $next_execution_new"
-
-        # Update the query with the new next_execution timestamp
-        mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
-        "UPDATE queries SET next_execution = '$next_execution_new' WHERE id = $id;"
     fi
 done <<< "$queries"
