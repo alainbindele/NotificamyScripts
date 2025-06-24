@@ -89,8 +89,8 @@ build_json_message() {
 
 # Process each line of queries
 echo "$queries" | while IFS='|||' read -r id prompt cron_params next_execution created_at user_email user_discord_webhook user_slack_webhook user_phone; do
-    # Check that id is a number, prompt and email are not empty
-    if [[ "$id" =~ ^[0-9]+$ && -n "$prompt" && -n "$user_email" ]]; then
+    # Check that prompt and email are not empty
+    if [[ -n "$prompt" && -n "$user_email" ]]; then
         echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
 
         # Build JSON message excluding null fields
