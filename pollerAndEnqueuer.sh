@@ -87,11 +87,8 @@ build_json_message() {
     echo "$json"
 }
 
-# Iterate through each query result
-while IFS= read -r line; do
-    # Parse fields based on '|||' separator
-    IFS='|||' read -r id prompt cron_params next_execution created_at user_email user_discord_webhook user_slack_webhook user_phone <<< "$line"
-
+# Process each line of queries
+echo "$queries" | while IFS='|||' read -r id prompt cron_params next_execution created_at user_email user_discord_webhook user_slack_webhook user_phone; do
     # Check that id is a number, prompt and email are not empty
     if [[ "$id" =~ ^[0-9]+$ && -n "$prompt" && -n "$user_email" ]]; then
         echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
@@ -120,4 +117,4 @@ while IFS= read -r line; do
         mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
         "UPDATE queries SET next_execution = '$next_execution_new' WHERE id = $id;"
     fi
-done <<< "$queries"
+done
