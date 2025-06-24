@@ -33,7 +33,7 @@ queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -D "$DB_NAME" -N -e \
  WHERE q.is_valid = 1
  AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
  AND q.user_id = u.id
- ;" | sed 's/\t/|||/g')
+ ;" | sed 's/\t/§§§/g')
 
 # Function that computes the next execution time from a cron expression and a base time
 calculate_next_execution() {
@@ -89,16 +89,16 @@ build_json_message() {
 
 # Iterate through each query result
 while IFS= read -r line; do
-    # Parse fields based on '|||' separator
-    id=$(echo "$line" | cut -d '|' -f1)
-    prompt=$(echo "$line" | cut -d '|' -f2)
-    cron_params=$(echo "$line" | cut -d '|' -f3)
-    next_execution=$(echo "$line" | cut -d '|' -f4)
-    created_at=$(echo "$line" | cut -d '|' -f5)
-    user_email=$(echo "$line" | cut -d '|' -f6)
-    user_discord_webhook=$(echo "$line" | cut -d '|' -f7)
-    user_slack_webhook=$(echo "$line" | cut -d '|' -f8)
-    user_phone=$(echo "$line" | cut -d '|' -f9)
+    # Parse fields based on '§§§' separator
+    id=$(echo "$line" | cut -d '§' -f1)
+    prompt=$(echo "$line" | cut -d '§' -f4)
+    cron_params=$(echo "$line" | cut -d '§' -f7)
+    next_execution=$(echo "$line" | cut -d '§' -f10)
+    created_at=$(echo "$line" | cut -d '§' -f13)
+    user_email=$(echo "$line" | cut -d '§' -f16)
+    user_discord_webhook=$(echo "$line" | cut -d '§' -f19)
+    user_slack_webhook=$(echo "$line" | cut -d '§' -f22)
+    user_phone=$(echo "$line" | cut -d '§' -f25)
 
     # Check that prompt and email are not empty
     if [[ -n "$prompt" && -n "$user_email" ]]; then
