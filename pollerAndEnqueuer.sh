@@ -55,6 +55,37 @@ print(next_execution.strftime('%Y-%m-%d %H:%M:%S'))
 "
 }
 
+# Function to build JSON message excluding null/empty fields
+build_json_message() {
+    local id="$1"
+    local user_email="$2"
+    local prompt="$3"
+    local user_discord_webhook="$4"
+    local user_slack_webhook="$5"
+    local user_phone="$6"
+    
+    # Start with required fields
+    local json="{\"query_id\": $id, \"user_email\": \"$user_email\", \"prompt\": \"$prompt\""
+    
+    # Add optional fields only if they are not NULL or empty
+    if [[ -n "$user_discord_webhook" && "$user_discord_webhook" != "NULL" ]]; then
+        json="$json, \"user_discord_webhook\": \"$user_discord_webhook\""
+    fi
+    
+    if [[ -n "$user_slack_webhook" && "$user_slack_webhook" != "NULL" ]]; then
+        json="$json, \"user_slack_webhook\": \"$user_slack_webhook\""
+    fi
+    
+    if [[ -n "$user_phone" && "$user_phone" != "NULL" ]]; then
+        json="$json, \"user_phone\": \"$user_phone\""
+    fi
+    
+    # Close JSON object
+    json="$json}"
+    
+    echo "$json"
+}
+
 # Iterate through each query result
 while IFS= read -r line; do
     # Parse fields based on '|||' separator (3 pipes turned into individual '|')
@@ -67,27 +98,33 @@ while IFS= read -r line; do
     user_discord_webhook=$(echo "$line" | cut -d '|' -f19)
     user_slack_webhook=$(echo "$line" | cut -d '|' -f21)
     user_phone=$(echo "$line" | cut -d '|' -f24)
-# Check that id is a number, prompt and email are not empty
-  if [[ "$id" =~ ^[0-9]+$ && -n "$prompt" ]]; then    echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
 
-    # Send the prompt to AWS SQS queue
-    aws sqs send-message \
-        --queue-url "$SQS_URL" \
-        --message-body "{\"query_id\": $id,\"user_email\":$user_email ,\"user_discord_webhook\":$user_user_discord_webhook ,\"user_slack_webhook\":$user_slack_webhook ,\"user_phone\":$user_phone , \"prompt\": \"$prompt\"}" \
-        --message-group-id "`date +%s`"
+    # Check that id is a number, prompt and email are not empty
+    if [[ "$id" =~ ^[0-9]+$ && -n "$prompt" && -n "$user_email" ]]; then
+        echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
 
-    # Determine the base time for next execution calculation
-    if [[ "$next_execution" == "NULL" || -z "$next_execution" ]]; then
-        base_time="$created_at"
-    else
-        base_time="$next_execution"
+        # Build JSON message excluding null fields
+        json_message=$(build_json_message "$id" "$user_email" "$prompt" "$user_discord_webhook" "$user_slack_webhook" "$user_phone")
+        
+        # Send the prompt to AWS SQS queue
+        aws sqs send-message \
+            --queue-url "$SQS_URL" \
+            --message-body "$json_message" \
+            --message-group-id "`date +%s`"
+
+        # Determine the base time for next execution calculation
+        if [[ "$next_execution" == "NULL" || -z "$next_execution" ]]; then
+            base_time="$created_at"
+        else
+            base_time="$next_execution"
+        fi
+
+        # Compute the next execution time from the cron expression
+        next_execution_new=$(calculate_next_execution "$cron_params" "$base_time")
+        echo "`date` - ⏭  Nuova next_execution → $next_execution_new"
+
+        # Update the query with the new next_execution timestamp
+        mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
+        "UPDATE queries SET next_execution = '$next_execution_new' WHERE id = $id;"
     fi
-
-    # Compute the next execution time from the cron expression
-    next_execution_new=$(calculate_next_execution "$cron_params" "$base_time")
-    echo "`date` - ⏭  Nuova next_execution → $next_execution_new"
-
-    # Update the query with the new next_execution timestamp
-    mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
-    "UPDATE queries SET next_execution = '$next_execution_new' WHERE id = $id;"
-  fi
+done <<< "$queries"
