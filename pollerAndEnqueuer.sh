@@ -129,8 +129,6 @@ while IFS= read -r line; do
             # Update the query with the new next_execution timestamp
             mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" -D "$DB_NAME" -e \
             "UPDATE queries SET next_execution = '$next_execution_new' WHERE id = $id;"
-        else
-            echo "`date` - ⚠️  Nessun cron_params impostato per Query ID $id - non calcolo next_execution"
         fi
     fi
 done <<< "$queries"
