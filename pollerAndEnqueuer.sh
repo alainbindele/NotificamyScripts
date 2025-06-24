@@ -63,26 +63,26 @@ build_json_message() {
     local user_discord_webhook="$4"
     local user_slack_webhook="$5"
     local user_phone="$6"
-
+    
     # Start with required fields
     local json="{\"query_id\": $id, \"user_email\": \"$user_email\", \"prompt\": \"$prompt\""
-
+    
     # Add optional fields only if they are not NULL or empty
     if [[ -n "$user_discord_webhook" && "$user_discord_webhook" != "NULL" ]]; then
         json="$json, \"user_discord_webhook\": \"$user_discord_webhook\""
     fi
-
+    
     if [[ -n "$user_slack_webhook" && "$user_slack_webhook" != "NULL" ]]; then
         json="$json, \"user_slack_webhook\": \"$user_slack_webhook\""
     fi
-
+    
     if [[ -n "$user_phone" && "$user_phone" != "NULL" ]]; then
         json="$json, \"user_phone\": \"$user_phone\""
     fi
-
+    
     # Close JSON object
     json="$json}"
-
+    
     echo "$json"
 }
 
@@ -105,7 +105,7 @@ while IFS= read -r line; do
 
         # Build JSON message excluding null fields
         json_message=$(build_json_message "$id" "$user_email" "$prompt" "$user_discord_webhook" "$user_slack_webhook" "$user_phone")
-
+        
         # Send the prompt to AWS SQS queue
         aws sqs send-message \
             --queue-url "$SQS_URL" \
