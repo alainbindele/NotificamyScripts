@@ -38,6 +38,7 @@ queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -D "$DB_NAME" -N -e \
 # Function that computes the next execution time from a cron expression and a base time
 calculate_next_execution() {
   local cron_expr="$1"
+  local base_time="$2"
 
   python3 -c "
 from croniter import croniter
@@ -88,16 +89,8 @@ build_json_message() {
 
 # Iterate through each query result
 while IFS= read -r line; do
-    # Parse fields based on '|||' separator (3 pipes turned into individual '|')
-    id=$(echo "$line" | cut -d '|' -f1)
-    prompt=$(echo "$line" | cut -d '|' -f4)
-    cron_params=$(echo "$line" | cut -d '|' -f7)
-    next_execution=$(echo "$line" | cut -d '|' -f10)
-    created_at=$(echo "$line" | cut -d '|' -f13)
-    user_email=$(echo "$line" | cut -d '|' -f16)
-    user_discord_webhook=$(echo "$line" | cut -d '|' -f19)
-    user_slack_webhook=$(echo "$line" | cut -d '|' -f21)
-    user_phone=$(echo "$line" | cut -d '|' -f24)
+    # Parse fields based on '|||' separator
+    IFS='|||' read -r id prompt cron_params next_execution created_at user_email user_discord_webhook user_slack_webhook user_phone <<< "$line"
 
     # Check that id is a number, prompt and email are not empty
     if [[ "$id" =~ ^[0-9]+$ && -n "$prompt" && -n "$user_email" ]]; then
