@@ -89,16 +89,16 @@ build_json_message() {
 
 # Iterate through each query result
 while IFS= read -r line; do
-    # Parse fields based on '§§§' separator
-    id=$(echo "$line" | cut -d '§' -f1)
-    prompt=$(echo "$line" | cut -d '§' -f4)
-    cron_params=$(echo "$line" | cut -d '§' -f7)
-    next_execution=$(echo "$line" | cut -d '§' -f10)
-    created_at=$(echo "$line" | cut -d '§' -f13)
-    user_email=$(echo "$line" | cut -d '§' -f16)
-    user_discord_webhook=$(echo "$line" | cut -d '§' -f19)
-    user_slack_webhook=$(echo "$line" | cut -d '§' -f22)
-    user_phone=$(echo "$line" | cut -d '§' -f25)
+    # Parse fields using awk with multi-character field separator
+    id=$(echo "$line" | awk -F'§§§' '{print $1}')
+    prompt=$(echo "$line" | awk -F'§§§' '{print $2}')
+    cron_params=$(echo "$line" | awk -F'§§§' '{print $3}')
+    next_execution=$(echo "$line" | awk -F'§§§' '{print $4}')
+    created_at=$(echo "$line" | awk -F'§§§' '{print $5}')
+    user_email=$(echo "$line" | awk -F'§§§' '{print $6}')
+    user_discord_webhook=$(echo "$line" | awk -F'§§§' '{print $7}')
+    user_slack_webhook=$(echo "$line" | awk -F'§§§' '{print $8}')
+    user_phone=$(echo "$line" | awk -F'§§§' '{print $9}')
 
     # Check that prompt and email are not empty
     if [[ -n "$prompt" && -n "$user_email" ]]; then
