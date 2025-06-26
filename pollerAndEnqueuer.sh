@@ -28,7 +28,7 @@ export MYSQL_PWD="$DB_PASS"
 
 # Fetch queries that are due for execution or have no next_execution set
 queries=$(mysql -h "$DB_HOST" -u "$DB_USER" -D "$DB_NAME" -N -e \
-"SELECT q.id, q.prompt, q.cron_params, q.next_execution, q.created_at, u.email, u.discord_webhook, u.slack_webhook, u.whatsapp_phone, q.already_delivered
+"SELECT q.id, q.prompt, q.cron_params, q.next_execution, q.created_at, u.email, u.discord_webhook, u.slack_webhook, u.whatsapp_phone, q.closed
  FROM queries as q, users as u
  WHERE q.is_valid = 1
  AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
@@ -99,13 +99,13 @@ while IFS= read -r line; do
     user_discord_webhook=$(echo "$line" | awk -F'§§§' '{print $7}')
     user_slack_webhook=$(echo "$line" | awk -F'§§§' '{print $8}')
     user_phone=$(echo "$line" | awk -F'§§§' '{print $9}')
-    already_delivered=$(echo "$line" | awk -F'§§§' '{print $10}')
+    closed=$(echo "$line" | awk -F'§§§' '{print $10}')
 
     # Check that prompt and email are not empty
     if [[ -n "$prompt" && -n "$user_email" ]]; then
-        # Skip sending to SQS if already_delivered is true and cron_params is null/empty
-        if [[ "$already_delivered" == "1" && ( -z "$cron_params" || "$cron_params" == "NULL" ) ]]; then
-            echo "`date` - ⏭  Saltando Query ID $id: già consegnata e non ricorrente"
+        # Skip sending to SQS if closed is 1
+        if [[ "$closed" == "1" ]]; then
+            echo "`date` - ⏭  Saltando Query ID $id: query chiusa"
             continue
         fi
 
