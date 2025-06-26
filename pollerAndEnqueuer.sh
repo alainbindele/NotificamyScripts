@@ -99,9 +99,16 @@ while IFS= read -r line; do
     user_discord_webhook=$(echo "$line" | awk -F'§§§' '{print $7}')
     user_slack_webhook=$(echo "$line" | awk -F'§§§' '{print $8}')
     user_phone=$(echo "$line" | awk -F'§§§' '{print $9}')
+    already_delivered=$(echo "$line" | awk -F'§§§' '{print $10}')
 
     # Check that prompt and email are not empty
     if [[ -n "$prompt" && -n "$user_email" ]]; then
+        # Skip sending to SQS if already_delivered is true and cron_params is null/empty
+        if [[ "$already_delivered" == "1" && ( -z "$cron_params" || "$cron_params" == "NULL" ) ]]; then
+            echo "`date` - ⏭  Saltando Query ID $id: già consegnata e non ricorrente"
+            continue
+        fi
+
         echo "`date` - ▶️  Eseguo Query ID $id: $prompt"
 
         # Build JSON message excluding null fields
