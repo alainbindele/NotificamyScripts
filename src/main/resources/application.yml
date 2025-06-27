@@ -59,10 +59,10 @@ batch:
     thread-pool-size: 10
     throttle-limit: 5
 
-# Scheduling
+# Scheduling - Updated to run every 5 minutes
 scheduling:
   poller:
-    cron: "0 */1 * * * *" # Every minute
+    cron: "0 */5 * * * *" # Every 5 minutes (was every minute)
     enabled: true
 
 # Monitoring
