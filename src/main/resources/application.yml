@@ -1,0 +1,89 @@
+spring:
+  application:
+    name: notification-batch-poller
+  
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/NotificamyDB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASS:password}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 60000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+        jdbc:
+          batch_size: 1000
+          order_inserts: true
+          order_updates: true
+        cache:
+          use_second_level_cache: false
+
+  batch:
+    job:
+      enabled: false # Disable auto-run, we'll control execution
+    jdbc:
+      initialize-schema: always
+      table-prefix: BATCH_
+
+# AWS Configuration
+aws:
+  region: eu-south-1
+  sqs:
+    queue-url: https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo
+    batch-size: 10
+    visibility-timeout: 300
+
+# Batch Configuration
+batch:
+  notification-poller:
+    chunk-size: 1000
+    skip-limit: 100
+    retry-limit: 3
+    thread-pool-size: 10
+    throttle-limit: 5
+
+# Scheduling
+scheduling:
+  poller:
+    cron: "0 */1 * * * *" # Every minute
+    enabled: true
+
+# Monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,batch
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# Logging
+logging:
+  level:
+    com.notifyme: INFO
+    org.springframework.batch: INFO
+    org.springframework.jdbc: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/notification-poller.log
+    max-size: 100MB
+    max-history: 30
