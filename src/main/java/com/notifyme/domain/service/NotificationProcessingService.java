@@ -28,11 +28,11 @@ public class NotificationProcessingService {
      * @return NotificationMessage or null if query should be skipped
      */
     public NotificationMessage processQuery(NotificationQuery query) {
-        log.debug("Processing query ID: {} with prompt: {}", query.getId(), query.getPrompt());
+        log.debug("🔄 Processing query ID: {} with prompt: {}", query.getId(), query.getPrompt());
         
-        // Double-check: Skip closed queries (should already be filtered at DB level)
+        // CRITICAL: First check - Skip closed queries
         if (query.isClosed()) {
-            log.warn("⚠️  Query ID {} is closed but was not filtered at database level", query.getId());
+            log.warn("🚨 CRITICAL: Query ID {} is CLOSED - should NOT have been selected! Skipping.", query.getId());
             return null;
         }
         
