@@ -28,15 +28,15 @@ public class NotificationProcessingService {
     public NotificationMessage processQuery(NotificationQuery query) {
         log.debug("Processing query ID: {} with prompt: {}", query.getId(), query.getPrompt());
         
-        // Skip closed queries
+        // Double-check: Skip closed queries (should already be filtered at DB level)
         if (query.isClosed()) {
-            log.info("⏭  Skipping Query ID {}: query is closed", query.getId());
+            log.warn("⚠️  Query ID {} is closed but was not filtered at database level", query.getId());
             return null;
         }
         
         // Validate required fields
         if (!query.hasValidPrompt() || !query.hasValidEmail()) {
-            log.warn("Skipping query ID {} due to missing prompt or email", query.getId());
+            log.warn("⚠️  Skipping query ID {} due to missing prompt or email", query.getId());
             return null;
         }
         
@@ -57,7 +57,7 @@ public class NotificationProcessingService {
         // Convert to domain message
         NotificationMessage message = NotificationMessage.fromQuery(query);
         
-        log.debug("Created notification message for query ID: {}", query.getId());
+        log.debug("✅ Created notification message for query ID: {}", query.getId());
         return message;
     }
 }

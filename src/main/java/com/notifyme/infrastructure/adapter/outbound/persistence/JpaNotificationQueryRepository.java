@@ -34,12 +34,16 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             FROM queries q 
             INNER JOIN users u ON q.user_id = u.id
             WHERE q.is_valid = 1 
+              AND q.closed = 0
               AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
             ORDER BY q.id ASC
             LIMIT ? OFFSET ?
             """;
         
-        return jdbcTemplate.query(sql, new NotificationQueryRowMapper(), pageSize, offset);
+        List<NotificationQuery> queries = jdbcTemplate.query(sql, new NotificationQueryRowMapper(), pageSize, offset);
+        log.debug("Found {} queries due for execution (offset: {}, pageSize: {})", queries.size(), offset, pageSize);
+        
+        return queries;
     }
     
     @Override
@@ -60,6 +64,7 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             SELECT COUNT(*) 
             FROM queries q 
             WHERE q.is_valid = 1 
+              AND q.closed = 0
               AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
             """;
         
