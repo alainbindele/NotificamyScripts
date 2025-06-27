@@ -2,6 +2,10 @@ spring:
   application:
     name: notification-batch-poller
   
+  # Server configuration - Port 8088
+  server:
+    port: 8088
+  
   # Database configuration - will be overridden by AWS Secrets Manager
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/NotificamyDB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true

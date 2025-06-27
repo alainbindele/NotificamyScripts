@@ -20,7 +20,7 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8088:8088"  # Updated port mapping
     volumes:
       - ./logs:/app/logs
       # Mount AWS credentials if available
