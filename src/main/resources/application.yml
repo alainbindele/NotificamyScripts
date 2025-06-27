@@ -2,11 +2,6 @@ spring:
   application:
     name: notification-batch-poller
   
-  # Server configuration - Port 8088
-  server:
-    port: 8088
-  
-  # Database configuration - will be overridden by AWS Secrets Manager
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/NotificamyDB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
@@ -42,19 +37,11 @@ spring:
       initialize-schema: always
       table-prefix: BATCH_
 
-# Server configuration (explicit)
-server:
-  port: 8088
-
 # AWS Configuration
 aws:
-  region: ${AWS_REGION:eu-south-1}
-  secrets:
-    enabled: ${AWS_SECRETS_ENABLED:true}
-    database-credentials-name: ${AWS_SECRETS_DB_NAME:notificamy/database-credentials}
+  region: eu-south-1
   sqs:
-    # Fallback queue URL - will be overridden by AWS Secrets Manager
-    queue-url: ${AWS_SQS_QUEUE_URL:}
+    queue-url: https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo
     batch-size: 10
     visibility-timeout: 300
 
@@ -67,10 +54,10 @@ batch:
     thread-pool-size: 10
     throttle-limit: 5
 
-# Scheduling - Updated to run every 5 minutes
+# Scheduling
 scheduling:
   poller:
-    cron: "0 */5 * * * *" # Every 5 minutes (was every minute)
+    cron: "0 */1 * * * *" # Every minute
     enabled: true
 
 # Monitoring
@@ -93,7 +80,6 @@ logging:
     com.notifyme: INFO
     org.springframework.batch: INFO
     org.springframework.jdbc: WARN
-    software.amazon.awssdk: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

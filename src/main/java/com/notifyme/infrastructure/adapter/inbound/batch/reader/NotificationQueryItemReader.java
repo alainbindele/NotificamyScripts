@@ -10,11 +10,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Spring Batch ItemReader for notification queries with duplicate prevention
+ * Spring Batch ItemReader for notification queries
  */
 @Slf4j
 @Component
@@ -27,68 +25,44 @@ public class NotificationQueryItemReader implements ItemReader<NotificationQuery
     private int chunkSize;
     
     private Iterator<NotificationQuery> queryIterator;
-    private final AtomicInteger currentOffset = new AtomicInteger(0);
-    private volatile boolean hasMoreData = true;
-    private volatile boolean initialized = false;
-    
-    // Track processed queries to prevent duplicates
-    private final ConcurrentHashMap<Long, Boolean> processedQueries = new ConcurrentHashMap<>();
+    private int currentOffset = 0;
+    private boolean hasMoreData = true;
     
     @Override
-    public synchronized NotificationQuery read() throws Exception {
-        if (!initialized) {
-            reset();
-            initialized = true;
-        }
-        
+    public NotificationQuery read() throws Exception {
         if (queryIterator == null || (!queryIterator.hasNext() && hasMoreData)) {
             loadNextBatch();
         }
         
         if (queryIterator != null && queryIterator.hasNext()) {
-            NotificationQuery query = queryIterator.next();
-            
-            // Check if already processed to prevent duplicates
-            if (processedQueries.putIfAbsent(query.getId(), true) != null) {
-                log.debug("Skipping already processed query ID: {}", query.getId());
-                return read(); // Recursively get next query
-            }
-            
-            log.debug("Reading query ID: {} - {}", query.getId(), query.getPrompt());
-            return query;
+            return queryIterator.next();
         }
         
-        // End of data - reset for next job execution
-        log.info("Finished reading all queries. Processed {} unique queries", processedQueries.size());
+        // Reset for next job execution
         reset();
         return null;
     }
     
     private void loadNextBatch() {
-        int offset = currentOffset.get();
-        log.debug("Loading next batch of queries, offset: {}, size: {}", offset, chunkSize);
+        log.debug("Loading next batch of queries, offset: {}, size: {}", currentOffset, chunkSize);
         
-        List<NotificationQuery> queries = repository.findQueriesDueForExecution(chunkSize, offset);
+        List<NotificationQuery> queries = repository.findQueriesDueForExecution(chunkSize, currentOffset);
         
         if (queries.isEmpty()) {
             hasMoreData = false;
             queryIterator = null;
-            log.debug("No more queries to process at offset: {}", offset);
+            log.debug("No more queries to process");
         } else {
             queryIterator = queries.iterator();
-            currentOffset.addAndGet(queries.size());
+            currentOffset += queries.size();
             hasMoreData = queries.size() == chunkSize;
-            log.debug("Loaded {} queries, new offset: {}, hasMoreData: {}", 
-                     queries.size(), currentOffset.get(), hasMoreData);
+            log.debug("Loaded {} queries, hasMoreData: {}", queries.size(), hasMoreData);
         }
     }
     
     private void reset() {
         queryIterator = null;
-        currentOffset.set(0);
+        currentOffset = 0;
         hasMoreData = true;
-        processedQueries.clear();
-        initialized = false;
-        log.debug("Reader reset for next job execution");
     }
 }

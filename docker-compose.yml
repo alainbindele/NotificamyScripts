@@ -5,26 +5,19 @@ services:
     build: .
     container_name: notification-batch-poller
     environment:
-      - AWS_REGION=eu-south-1
-      # AWS credentials will be picked up from aws configure or IAM roles
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      # Enable AWS Secrets Manager
-      - AWS_SECRETS_ENABLED=true
-      - AWS_SECRETS_DB_NAME=notificamy/database-credentials
-      # Fallback values for local development (when secrets are disabled)
       - MYSQL_HOST=mysql
       - MYSQL_USER=notifyme
       - MYSQL_PASS=notifyme123
+      - AWS_REGION=eu-south-1
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
     depends_on:
       mysql:
         condition: service_healthy
     ports:
-      - "8088:8088"  # Updated port mapping
+      - "8080:8080"
     volumes:
       - ./logs:/app/logs
-      # Mount AWS credentials if available
-      - ~/.aws:/root/.aws:ro
     networks:
       - notifyme-network
 

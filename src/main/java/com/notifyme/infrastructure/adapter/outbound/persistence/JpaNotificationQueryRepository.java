@@ -34,34 +34,12 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             FROM queries q 
             INNER JOIN users u ON q.user_id = u.id
             WHERE q.is_valid = 1 
-              AND (q.closed = 0 OR q.closed IS NULL)
-              AND (
-                  (q.next_execution IS NULL AND q.cron_params IS NOT NULL AND q.cron_params != '' AND q.cron_params != 'NULL') OR
-                  (q.next_execution <= NOW() AND q.cron_params IS NOT NULL AND q.cron_params != '' AND q.cron_params != 'NULL') OR
-                  (q.cron_params IS NULL OR q.cron_params = '' OR q.cron_params = 'NULL')
-              )
+              AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
             ORDER BY q.id ASC
             LIMIT ? OFFSET ?
             """;
         
-        List<NotificationQuery> queries = jdbcTemplate.query(sql, new NotificationQueryRowMapper(), pageSize, offset);
-        
-        log.info("🔍 Found {} queries due for execution (offset: {}, pageSize: {})", queries.size(), offset, pageSize);
-        
-        // Log details for debugging - CRITICAL: Check closed status
-        for (NotificationQuery query : queries) {
-            log.info("📋 Query ID {}: closed={}, cron_params='{}', next_execution={}, prompt='{}'", 
-                    query.getId(), query.isClosed(), query.getCronParams(), 
-                    query.getNextExecution(), query.getPrompt());
-            
-            // SAFETY CHECK: Double-check closed status
-            if (query.isClosed()) {
-                log.error("🚨 CRITICAL: Query ID {} is CLOSED but was selected by database query! This should not happen!", 
-                         query.getId());
-            }
-        }
-        
-        return queries;
+        return jdbcTemplate.query(sql, new NotificationQueryRowMapper(), pageSize, offset);
     }
     
     @Override
@@ -70,9 +48,9 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
         int updated = jdbcTemplate.update(sql, nextExecution, queryId);
         
         if (updated > 0) {
-            log.info("✅ Updated next_execution for query ID: {} to {}", queryId, nextExecution);
+            log.debug("Updated next_execution for query ID: {} to {}", queryId, nextExecution);
         } else {
-            log.warn("⚠️  No query found with ID: {} for next_execution update", queryId);
+            log.warn("No query found with ID: {} for next_execution update", queryId);
         }
     }
     
@@ -82,42 +60,11 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             SELECT COUNT(*) 
             FROM queries q 
             WHERE q.is_valid = 1 
-              AND (q.closed = 0 OR q.closed IS NULL)
-              AND (
-                  (q.next_execution IS NULL AND q.cron_params IS NOT NULL AND q.cron_params != '' AND q.cron_params != 'NULL') OR
-                  (q.next_execution <= NOW() AND q.cron_params IS NOT NULL AND q.cron_params != '' AND q.cron_params != 'NULL') OR
-                  (q.cron_params IS NULL OR q.cron_params = '' OR q.cron_params = 'NULL')
-              )
+              AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
             """;
         
         Long count = jdbcTemplate.queryForObject(sql, Long.class);
         return count != null ? count : 0L;
-    }
-    
-    /**
-     * Check the actual status of a specific query in the database
-     */
-    public void debugQueryStatus(Long queryId) {
-        String sql = """
-            SELECT id, closed, is_valid, cron_params, next_execution, prompt
-            FROM queries 
-            WHERE id = ?
-            """;
-        
-        try {
-            jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
-                log.info("🔍 DEBUG Query ID {}: closed={}, is_valid={}, cron_params='{}', next_execution={}, prompt='{}'",
-                        rs.getLong("id"),
-                        rs.getBoolean("closed"),
-                        rs.getBoolean("is_valid"),
-                        rs.getString("cron_params"),
-                        rs.getTimestamp("next_execution"),
-                        rs.getString("prompt"));
-                return null;
-            }, queryId);
-        } catch (Exception e) {
-            log.error("Failed to debug query status for ID: {}", queryId, e);
-        }
     }
     
     /**
@@ -127,15 +74,8 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
         
         @Override
         public NotificationQuery mapRow(ResultSet rs, int rowNum) throws SQLException {
-            boolean closed = rs.getBoolean("closed");
-            Long queryId = rs.getLong("id");
-            
-            // Log the raw database values
-            log.debug("🗃️  Raw DB values for Query ID {}: closed={}, is_valid={}", 
-                     queryId, closed, rs.getBoolean("is_valid"));
-            
             return NotificationQuery.builder()
-                .id(queryId)
+                .id(rs.getLong("id"))
                 .prompt(rs.getString("prompt"))
                 .cronParams(rs.getString("cron_params"))
                 .nextExecution(rs.getTimestamp("next_execution") != null ? 
@@ -144,7 +84,7 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
                     rs.getTimestamp("created_at").toLocalDateTime() : null)
                 .userId(rs.getLong("user_id"))
                 .isValid(rs.getBoolean("is_valid"))
-                .closed(closed)
+                .closed(rs.getBoolean("closed"))
                 .userEmail(rs.getString("email"))
                 .discordWebhook(rs.getString("discord_webhook"))
                 .slackWebhook(rs.getString("slack_webhook"))

@@ -72,9 +72,8 @@ public class NotificationPollerBatchConfig {
                 .skip(Exception.class)
                 .retryLimit(retryLimit)
                 .retry(Exception.class)
-                // Disable multi-threading to prevent duplicate processing
-                // .taskExecutor(notificationTaskExecutor())
-                // .throttleLimit(throttleLimit)
+                .taskExecutor(notificationTaskExecutor())
+                .throttleLimit(throttleLimit)
                 .build();
     }
     

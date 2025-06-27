@@ -3,7 +3,6 @@ package com.notifyme.domain.service;
 import com.notifyme.domain.model.NotificationMessage;
 import com.notifyme.domain.model.NotificationQuery;
 import com.notifyme.domain.port.outbound.CronCalculatorService;
-import com.notifyme.domain.port.outbound.NotificationQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,7 +18,6 @@ import java.time.LocalDateTime;
 public class NotificationProcessingService {
     
     private final CronCalculatorService cronCalculatorService;
-    private final NotificationQueryRepository queryRepository;
     
     /**
      * Process a notification query and convert it to a message
@@ -28,56 +26,38 @@ public class NotificationProcessingService {
      * @return NotificationMessage or null if query should be skipped
      */
     public NotificationMessage processQuery(NotificationQuery query) {
-        log.debug("🔄 Processing query ID: {} with prompt: {}", query.getId(), query.getPrompt());
+        log.debug("Processing query ID: {} with prompt: {}", query.getId(), query.getPrompt());
         
-        // CRITICAL: First check - Skip closed queries
+        // Skip closed queries
         if (query.isClosed()) {
-            log.warn("🚨 CRITICAL: Query ID {} is CLOSED - should NOT have been selected! Skipping.", query.getId());
+            log.info("⏭  Skipping Query ID {}: query is closed", query.getId());
             return null;
         }
         
         // Validate required fields
         if (!query.hasValidPrompt() || !query.hasValidEmail()) {
-            log.warn("⚠️  Skipping query ID {} due to missing prompt or email", query.getId());
+            log.warn("Skipping query ID {} due to missing prompt or email", query.getId());
             return null;
         }
         
         log.info("▶️  Processing Query ID {}: {}", query.getId(), query.getPrompt());
         
-        // Handle cron-based queries
+        // Calculate next execution time if cron parameters are provided
         if (query.hasCronParams()) {
-            LocalDateTime baseTime = LocalDateTime.now(); // Always use current time as base
+            LocalDateTime baseTime = query.getNextExecution() != null ? 
+                query.getNextExecution() : query.getCreatedAt();
             
             LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(
                 query.getCronParams(), baseTime);
             
-            // Update next execution in database immediately to prevent re-processing
-            try {
-                queryRepository.updateNextExecution(query.getId(), nextExecution);
-                query.setNextExecution(nextExecution);
-                log.info("⏭  Updated next execution for Query ID {} to: {}", query.getId(), nextExecution);
-            } catch (Exception e) {
-                log.error("❌ Failed to update next execution for query ID: {}", query.getId(), e);
-                // Don't continue processing if we can't update the next execution
-                // This prevents infinite loops
-                return null;
-            }
-        } else {
-            // For queries without cron params, set next_execution to far future to prevent re-processing
-            LocalDateTime farFuture = LocalDateTime.now().plusYears(100);
-            try {
-                queryRepository.updateNextExecution(query.getId(), farFuture);
-                log.info("🔒 Set far future execution for one-time Query ID {}", query.getId());
-            } catch (Exception e) {
-                log.error("❌ Failed to update execution time for one-time query ID: {}", query.getId(), e);
-                return null;
-            }
+            query.setNextExecution(nextExecution);
+            log.info("⏭  Next execution for Query ID {}: {}", query.getId(), nextExecution);
         }
         
         // Convert to domain message
         NotificationMessage message = NotificationMessage.fromQuery(query);
         
-        log.info("✅ Created notification message for query ID: {}", query.getId());
+        log.debug("Created notification message for query ID: {}", query.getId());
         return message;
     }
 }

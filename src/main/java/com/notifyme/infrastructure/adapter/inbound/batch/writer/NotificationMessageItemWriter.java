@@ -9,7 +9,6 @@ import org.springframework.batch.item.ItemWriter;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Spring Batch ItemWriter for notification messages
@@ -23,23 +22,17 @@ public class NotificationMessageItemWriter implements ItemWriter<NotificationMes
     
     @Override
     public void write(Chunk<? extends NotificationMessage> chunk) throws Exception {
-        // Filter out null messages (from closed/skipped queries)
-        List<NotificationMessage> validMessages = chunk.getItems().stream()
-                .filter(Objects::nonNull)
-                .map(NotificationMessage.class::cast)
-                .toList();
+        List<? extends NotificationMessage> messages = chunk.getItems();
         
-        if (validMessages.isEmpty()) {
-            log.debug("No valid messages to write (all were filtered out)");
+        if (messages.isEmpty()) {
             return;
         }
         
-        log.info("Writing {} valid messages to message queue (filtered from {} total)", 
-                validMessages.size(), chunk.getItems().size());
+        log.info("Writing {} messages to message queue", messages.size());
         
         try {
-            messageQueueService.sendMessages(validMessages);
-            log.info("Successfully sent {} messages to message queue", validMessages.size());
+            messageQueueService.sendMessages(List.copyOf(messages));
+            log.info("Successfully sent {} messages to message queue", messages.size());
         } catch (MessageQueueService.MessageQueueException e) {
             log.error("Failed to send messages to message queue", e);
             throw new RuntimeException("Failed to send messages to message queue", e);
