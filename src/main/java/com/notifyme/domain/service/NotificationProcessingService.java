@@ -3,6 +3,7 @@ package com.notifyme.domain.service;
 import com.notifyme.domain.model.NotificationMessage;
 import com.notifyme.domain.model.NotificationQuery;
 import com.notifyme.domain.port.outbound.CronCalculatorService;
+import com.notifyme.domain.port.outbound.NotificationQueryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
 public class NotificationProcessingService {
     
     private final CronCalculatorService cronCalculatorService;
+    private final NotificationQueryRepository queryRepository;
     
     /**
      * Process a notification query and convert it to a message
@@ -42,7 +44,7 @@ public class NotificationProcessingService {
         
         log.info("▶️  Processing Query ID {}: {}", query.getId(), query.getPrompt());
         
-        // Calculate next execution time if cron parameters are provided
+        // Calculate and update next execution time if cron parameters are provided
         if (query.hasCronParams()) {
             LocalDateTime baseTime = query.getNextExecution() != null ? 
                 query.getNextExecution() : query.getCreatedAt();
@@ -50,8 +52,15 @@ public class NotificationProcessingService {
             LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(
                 query.getCronParams(), baseTime);
             
-            query.setNextExecution(nextExecution);
-            log.info("⏭  Next execution for Query ID {}: {}", query.getId(), nextExecution);
+            // Update next execution in database immediately
+            try {
+                queryRepository.updateNextExecution(query.getId(), nextExecution);
+                query.setNextExecution(nextExecution);
+                log.info("⏭  Updated next execution for Query ID {} to: {}", query.getId(), nextExecution);
+            } catch (Exception e) {
+                log.error("Failed to update next execution for query ID: {}", query.getId(), e);
+                // Continue processing even if update fails
+            }
         }
         
         // Convert to domain message
