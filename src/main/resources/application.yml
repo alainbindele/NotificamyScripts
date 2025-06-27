@@ -37,6 +37,10 @@ spring:
       initialize-schema: always
       table-prefix: BATCH_
 
+# Server Configuration
+server:
+  port: 8088
+
 # AWS Configuration
 aws:
   region: eu-south-1

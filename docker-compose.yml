@@ -15,7 +15,7 @@ services:
       mysql:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8088:8088"
     volumes:
       - ./logs:/app/logs
     networks:
