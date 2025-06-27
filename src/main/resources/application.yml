@@ -2,6 +2,7 @@ spring:
   application:
     name: notification-batch-poller
   
+  # Database configuration - will be overridden by AWS Secrets Manager
   datasource:
     url: jdbc:mysql://${MYSQL_HOST:localhost}:3306/NotificamyDB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: ${MYSQL_USER:root}
@@ -39,9 +40,13 @@ spring:
 
 # AWS Configuration
 aws:
-  region: eu-south-1
+  region: ${AWS_REGION:eu-south-1}
+  secrets:
+    enabled: ${AWS_SECRETS_ENABLED:true}
+    database-credentials-name: ${AWS_SECRETS_DB_NAME:notificamy/database-credentials}
   sqs:
-    queue-url: https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo
+    # Fallback queue URL - will be overridden by AWS Secrets Manager
+    queue-url: ${AWS_SQS_QUEUE_URL:}
     batch-size: 10
     visibility-timeout: 300
 
@@ -80,6 +85,7 @@ logging:
     com.notifyme: INFO
     org.springframework.batch: INFO
     org.springframework.jdbc: WARN
+    software.amazon.awssdk: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

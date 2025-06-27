@@ -6,6 +6,7 @@ import com.notifyme.domain.model.NotificationMessage;
 import com.notifyme.domain.port.outbound.MessageQueueService;
 import com.notifyme.infrastructure.adapter.outbound.messaging.dto.SQSNotificationMessageDto;
 import com.notifyme.infrastructure.adapter.outbound.messaging.mapper.SQSMessageMapper;
+import com.notifyme.infrastructure.adapter.outbound.secrets.AwsSecretsManagerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,12 +16,13 @@ import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequest;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchRequestEntry;
 import software.amazon.awssdk.services.sqs.model.SendMessageBatchResponse;
 
+import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.IntStream;
 
 /**
- * SQS implementation of MessageQueueService
+ * SQS implementation of MessageQueueService with AWS Secrets Manager integration
  */
 @Slf4j
 @Service
@@ -30,12 +32,44 @@ public class SQSMessageQueueService implements MessageQueueService {
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
     private final SQSMessageMapper messageMapper;
+    private final AwsSecretsManagerService secretsManagerService;
     
-    @Value("${aws.sqs.queue-url}")
+    @Value("${aws.secrets.enabled:true}")
+    private boolean secretsEnabled;
+    
+    @Value("${aws.sqs.queue-url:}")
+    private String fallbackQueueUrl;
+    
+    @Value("${aws.sqs.batch-size:10}")
+    private int batchSize;
+    
     private String queueUrl;
     
-    @Value("${aws.sqs.batch-size}")
-    private int batchSize;
+    @PostConstruct
+    public void initializeQueueUrl() {
+        if (secretsEnabled) {
+            try {
+                log.info("Retrieving SQS queue URL from AWS Secrets Manager");
+                var credentials = secretsManagerService.getDatabaseCredentials();
+                
+                if (credentials.getSqsQueueUrl() != null && !credentials.getSqsQueueUrl().trim().isEmpty()) {
+                    this.queueUrl = credentials.getSqsQueueUrl();
+                    log.info("Successfully retrieved SQS queue URL from AWS Secrets Manager");
+                    return;
+                }
+            } catch (Exception e) {
+                log.error("Failed to retrieve SQS queue URL from AWS Secrets Manager", e);
+            }
+        }
+        
+        // Fallback to configuration
+        this.queueUrl = fallbackQueueUrl;
+        log.info("Using fallback SQS queue URL from configuration");
+        
+        if (queueUrl == null || queueUrl.trim().isEmpty()) {
+            throw new IllegalStateException("SQS queue URL not configured. Please set it in AWS Secrets Manager or configuration.");
+        }
+    }
     
     @Override
     public void sendMessages(List<NotificationMessage> messages) throws MessageQueueException {

@@ -1,0 +1,26 @@
+# Local development configuration without AWS Secrets Manager
+spring:
+  profiles:
+    active: local
+
+aws:
+  secrets:
+    enabled: false
+
+# Local database configuration
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/NotificamyDB?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USER:notifyme}
+    password: ${MYSQL_PASS:notifyme123}
+
+# Local SQS configuration
+aws:
+  sqs:
+    queue-url: ${AWS_SQS_QUEUE_URL:https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo}
+
+# Enable debug logging for local development
+logging:
+  level:
+    com.notifyme: DEBUG
+    org.springframework.batch: DEBUG

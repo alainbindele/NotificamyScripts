@@ -1,6 +1,6 @@
-# NotifyMe Batch Poller - Hexagonal Architecture
+# NotifyMe Batch Poller - Hexagonal Architecture with AWS Secrets Manager
 
-A high-performance Spring Batch application built with **Hexagonal Architecture** that replaces the original Bash poller script for processing notification queries and sending them to message queues.
+A high-performance Spring Batch application built with **Hexagonal Architecture** that replaces the original Bash poller script for processing notification queries and sending them to message queues. Now integrated with **AWS Secrets Manager** for secure credential management.
 
 ## 🏗️ Architecture Overview
 
@@ -27,15 +27,43 @@ src/main/java/com/notifyme/
     │   └── outbound/                # Database, Messaging, External APIs
     │       ├── persistence/         # JPA repositories
     │       ├── messaging/           # SQS, Kafka, etc.
+    │       ├── secrets/             # AWS Secrets Manager
     │       └── cron/                # Cron calculation
     └── config/                      # Infrastructure configuration
 ```
+
+## 🔐 AWS Secrets Manager Integration
+
+### **Secrets Configuration**
+
+The application retrieves sensitive credentials from AWS Secrets Manager:
+
+**Secret Name**: `notificamy/database-credentials`
+
+**Secret Structure**:
+```json
+{
+  "DB_URL": "jdbc:mysql://your-host:3306/NotificamyDB?useSSL=false&serverTimezone=UTC",
+  "DB_USER": "your-database-user",
+  "DB_PASSWORD": "your-database-password",
+  "AWS_SQS_QUEUE_URL": "https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo"
+}
+```
+
+### **AWS Credentials**
+
+The application uses **AWS Default Credentials Provider Chain**:
+1. **Environment Variables** (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)
+2. **AWS CLI Configuration** (`~/.aws/credentials`)
+3. **IAM Roles** (when running on EC2/ECS/Lambda)
+4. **Instance Profile** (EC2 instances)
 
 ## 🚀 Key Benefits of Hexagonal Architecture
 
 ### 🔄 **Easy Technology Swapping**
 - **Database**: Switch from MySQL to PostgreSQL by changing one adapter
 - **Message Queue**: Replace SQS with Kafka, RabbitMQ, or any other system
+- **Secrets Management**: Replace AWS Secrets Manager with HashiCorp Vault or Azure Key Vault
 - **Cron Engine**: Swap CronUtils with Quartz or custom implementation
 - **Batch Framework**: Replace Spring Batch with custom solution
 
@@ -51,13 +79,32 @@ src/main/java/com/notifyme/
 
 ## 🔌 Adapter Examples
 
+### **Secrets Management Adapters**
+
+**Current: AWS Secrets Manager**
+```java
+@Service
+public class AwsSecretsManagerService {
+    // AWS Secrets Manager implementation
+}
+```
+
+**Future: HashiCorp Vault Adapter**
+```java
+@Service
+@Profile("vault")
+public class VaultSecretsService implements SecretsService {
+    // Vault-specific implementation
+}
+```
+
 ### **Message Queue Adapters**
 
 **Current: SQS Adapter**
 ```java
 @Service
 public class SQSMessageQueueService implements MessageQueueService {
-    // SQS-specific implementation
+    // SQS-specific implementation with Secrets Manager integration
 }
 ```
 
@@ -70,29 +117,11 @@ public class KafkaMessageQueueService implements MessageQueueService {
 }
 ```
 
-### **Database Adapters**
-
-**Current: MySQL/JPA Adapter**
-```java
-@Repository
-public class JpaNotificationQueryRepository implements NotificationQueryRepository {
-    // JPA-specific implementation
-}
-```
-
-**Future: MongoDB Adapter**
-```java
-@Repository
-@Profile("mongodb")
-public class MongoNotificationQueryRepository implements NotificationQueryRepository {
-    // MongoDB-specific implementation
-}
-```
-
 ## 🚀 Features
 
 - **High Performance**: Processes 100,000+ notifications per minute using Spring Batch chunk processing
 - **Scalable Architecture**: Designed to handle millions of users and hundreds of millions of notifications daily
+- **Secure Credential Management**: Integrated with AWS Secrets Manager for production-grade security
 - **Technology Agnostic**: Easy to swap databases, message queues, and other external systems
 - **Fault Tolerant**: Built-in retry mechanisms, skip logic, and error handling
 - **Monitoring Ready**: Integrated with Micrometer and Prometheus for comprehensive monitoring
@@ -109,30 +138,39 @@ public class MongoNotificationQueryRepository implements NotificationQueryReposi
 | Concurrent Processing | 1 | 10+ threads | 10x |
 | Error Recovery | Manual | Automatic | ∞ |
 | Monitoring | None | Full metrics | ∞ |
+| Security | Basic | AWS Secrets Manager | ∞ |
 
 ## 🛠️ Configuration
 
-### Database Configuration
-
-```yaml
-spring:
-  datasource:
-    url: jdbc:mysql://${MYSQL_HOST}:3306/NotificamyDB
-    username: ${MYSQL_USER}
-    password: ${MYSQL_PASS}
-```
-
-### Message Queue Configuration
+### **Production Configuration (AWS Secrets Manager)**
 
 ```yaml
 aws:
   region: eu-south-1
-  sqs:
-    queue-url: https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo
-    batch-size: 10
+  secrets:
+    enabled: true
+    database-credentials-name: notificamy/database-credentials
 ```
 
-### Batch Configuration
+### **Local Development Configuration**
+
+```yaml
+aws:
+  secrets:
+    enabled: false
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/NotificamyDB
+    username: notifyme
+    password: notifyme123
+
+aws:
+  sqs:
+    queue-url: https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo
+```
+
+### **Batch Configuration**
 
 ```yaml
 batch:
@@ -146,28 +184,55 @@ batch:
 
 ## 🚀 Getting Started
 
-### 1. Build the Application
+### **1. Setup AWS Secrets Manager**
+
+Create a secret in AWS Secrets Manager:
+
+```bash
+aws secretsmanager create-secret \
+    --name "notificamy/database-credentials" \
+    --description "Database and SQS credentials for NotifyMe" \
+    --secret-string '{
+        "DB_URL": "jdbc:mysql://your-host:3306/NotificamyDB?useSSL=false&serverTimezone=UTC",
+        "DB_USER": "your-db-user",
+        "DB_PASSWORD": "your-db-password",
+        "AWS_SQS_QUEUE_URL": "https://sqs.eu-south-1.amazonaws.com/435703062953/RecurrentDateTime.fifo"
+    }'
+```
+
+### **2. Configure AWS Credentials**
+
+```bash
+aws configure
+# Enter your AWS Access Key ID, Secret Access Key, and region
+```
+
+### **3. Build the Application**
 
 ```bash
 mvn clean package
 ```
 
-### 2. Set Environment Variables
+### **4. Run the Application**
 
-```bash
-export MYSQL_HOST=your-mysql-host
-export MYSQL_USER=your-mysql-user
-export MYSQL_PASS=your-mysql-password
-export AWS_REGION=eu-south-1
-```
-
-### 3. Run the Application
-
+**Production (with AWS Secrets Manager):**
 ```bash
 java -jar target/notification-batch-poller-1.0.0.jar
 ```
 
-### 4. Manual Job Trigger (Optional)
+**Local Development:**
+```bash
+java -jar target/notification-batch-poller-1.0.0.jar --spring.profiles.active=local
+```
+
+### **5. Docker Deployment**
+
+```bash
+# Ensure AWS credentials are configured
+docker-compose up -d
+```
+
+### **6. Manual Job Trigger (Optional)**
 
 ```bash
 curl -X POST http://localhost:8080/api/poller/trigger
@@ -175,7 +240,31 @@ curl -X POST http://localhost:8080/api/poller/trigger
 
 ## 🔄 Technology Migration Examples
 
-### Switching from SQS to Kafka
+### **Switching from AWS Secrets Manager to HashiCorp Vault**
+
+1. **Create Vault Adapter**:
+```java
+@Service
+@Profile("vault")
+public class VaultSecretsService implements SecretsService {
+    // Implement Vault-specific logic
+}
+```
+
+2. **Update Configuration**:
+```yaml
+spring:
+  profiles:
+    active: vault
+vault:
+  host: localhost
+  port: 8200
+  token: your-vault-token
+```
+
+3. **No changes needed** in domain logic or batch processing!
+
+### **Switching from SQS to Kafka**
 
 1. **Create Kafka Adapter**:
 ```java
@@ -196,59 +285,53 @@ kafka:
   topic: notifications
 ```
 
-3. **No changes needed** in domain logic or batch processing!
-
-### Switching from MySQL to PostgreSQL
-
-1. **Update Dependencies** in `pom.xml`
-2. **Update Configuration**:
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://${POSTGRES_HOST}:5432/NotificamyDB
-    driver-class-name: org.postgresql.Driver
-```
-
-3. **Repository remains the same** - JPA handles the differences!
+3. **Repository and secrets management remain the same**!
 
 ## 🧪 Testing
 
-### Run Unit Tests
+### **Run Unit Tests**
 
 ```bash
 mvn test
 ```
 
-### Run Integration Tests
+### **Run Integration Tests**
 
 ```bash
 mvn verify
 ```
 
-### Test Coverage
+### **Test with Local Profile**
+
+```bash
+mvn test -Dspring.profiles.active=local
+```
+
+### **Test Coverage**
 
 The project includes comprehensive tests for:
 - Domain logic (isolated from infrastructure)
 - Adapter implementations
 - Integration between layers
 - End-to-end batch processing
+- AWS Secrets Manager integration
 
 ## 📊 Monitoring
 
-### Health Checks
+### **Health Checks**
 
 ```bash
 curl http://localhost:8080/actuator/health
 ```
 
-### Metrics
+### **Metrics**
 
 ```bash
 curl http://localhost:8080/actuator/metrics
 curl http://localhost:8080/actuator/prometheus
 ```
 
-### Batch Job Status
+### **Batch Job Status**
 
 ```bash
 curl http://localhost:8080/actuator/batch
@@ -256,18 +339,40 @@ curl http://localhost:8080/actuator/batch
 
 ## 🔧 Development Guidelines
 
-### Adding New Adapters
+### **Adding New Secrets Providers**
 
-1. **Define Port Interface** in `domain/port/outbound/`
-2. **Implement Adapter** in `infrastructure/adapter/outbound/`
+1. **Define Secrets Interface** in `domain/port/outbound/`
+2. **Implement Adapter** in `infrastructure/adapter/outbound/secrets/`
 3. **Configure Bean** in `infrastructure/config/`
 4. **Add Tests** for the new adapter
 
-### Adding New Use Cases
+### **Adding New Message Queue Adapters**
+
+1. **Define Port Interface** in `domain/port/outbound/`
+2. **Implement Adapter** in `infrastructure/adapter/outbound/messaging/`
+3. **Configure Bean** in `infrastructure/config/`
+4. **Add Tests** for the new adapter
+
+### **Adding New Use Cases**
 
 1. **Define Use Case Interface** in `domain/port/inbound/`
 2. **Implement in Application Layer** in `application/service/`
 3. **Add Controller/Scheduler** in `infrastructure/adapter/inbound/`
+
+## 🔒 Security Best Practices
+
+### **Production Deployment**
+- ✅ Use AWS Secrets Manager for all sensitive credentials
+- ✅ Use IAM roles instead of access keys when possible
+- ✅ Enable AWS CloudTrail for audit logging
+- ✅ Rotate secrets regularly
+- ✅ Use least privilege principle for IAM policies
+
+### **Development Environment**
+- ✅ Use local profiles with fallback credentials
+- ✅ Never commit secrets to version control
+- ✅ Use environment variables for local development
+- ✅ Test with mock secrets services
 
 ## 📝 License
 
@@ -279,8 +384,9 @@ This project is the exclusive property of Alain Kiesse Bindele.
 **Alain Kiesse Bindele**
 - Email: alain.bindele@gmail.com
 - Architecture: Hexagonal Architecture with Spring Boot
+- Security: AWS Secrets Manager Integration
 - Used AI: ChatGPT 4o
 
 ---
 
-*This Hexagonal Architecture implementation provides maximum flexibility for scaling to millions of users while maintaining clean, testable, and maintainable code.*
+*This Hexagonal Architecture implementation with AWS Secrets Manager provides maximum security and flexibility for scaling to millions of users while maintaining clean, testable, and maintainable code.*
