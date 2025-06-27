@@ -13,6 +13,7 @@ import org.mapstruct.MappingConstants;
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface NotificationQueryMapper {
     
+    @Mapping(target = "id", source = "entity.id")
     @Mapping(target = "userEmail", source = "user.email")
     @Mapping(target = "discordWebhook", source = "user.discordWebhook")
     @Mapping(target = "slackWebhook", source = "user.slackWebhook")
