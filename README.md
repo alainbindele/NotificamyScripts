@@ -1,47 +1,114 @@
-# NotifyMe Batch Poller
+# NotifyMe Batch Poller - Hexagonal Architecture
 
-A high-performance Spring Batch application that replaces the original Bash poller script for processing notification queries and sending them to AWS SQS.
+A high-performance Spring Batch application built with **Hexagonal Architecture** that replaces the original Bash poller script for processing notification queries and sending them to message queues.
+
+## 🏗️ Architecture Overview
+
+This project follows **Hexagonal Architecture (Ports & Adapters)** principles, ensuring complete decoupling between business logic and external systems.
+
+### 📁 Project Structure
+
+```
+src/main/java/com/notifyme/
+├── domain/                          # 🎯 Core Business Logic
+│   ├── model/                       # Domain entities
+│   ├── port/
+│   │   ├── inbound/                 # Use case interfaces
+│   │   └── outbound/                # Repository & service interfaces
+│   └── service/                     # Domain services
+├── application/                     # 🔧 Application Services
+│   └── service/                     # Use case implementations
+└── infrastructure/                  # 🔌 External Adapters
+    ├── adapter/
+    │   ├── inbound/                 # Controllers, Schedulers, Batch
+    │   │   ├── web/                 # REST controllers
+    │   │   ├── batch/               # Spring Batch components
+    │   │   └── scheduler/           # Job schedulers
+    │   └── outbound/                # Database, Messaging, External APIs
+    │       ├── persistence/         # JPA repositories
+    │       ├── messaging/           # SQS, Kafka, etc.
+    │       └── cron/                # Cron calculation
+    └── config/                      # Infrastructure configuration
+```
+
+## 🚀 Key Benefits of Hexagonal Architecture
+
+### 🔄 **Easy Technology Swapping**
+- **Database**: Switch from MySQL to PostgreSQL by changing one adapter
+- **Message Queue**: Replace SQS with Kafka, RabbitMQ, or any other system
+- **Cron Engine**: Swap CronUtils with Quartz or custom implementation
+- **Batch Framework**: Replace Spring Batch with custom solution
+
+### 🧪 **Testability**
+- Domain logic is completely isolated and easily testable
+- Mock external dependencies through ports
+- Test business rules without infrastructure concerns
+
+### 📈 **Scalability & Maintainability**
+- Clear separation of concerns
+- Independent evolution of each layer
+- Easy to add new features without affecting existing code
+
+## 🔌 Adapter Examples
+
+### **Message Queue Adapters**
+
+**Current: SQS Adapter**
+```java
+@Service
+public class SQSMessageQueueService implements MessageQueueService {
+    // SQS-specific implementation
+}
+```
+
+**Future: Kafka Adapter**
+```java
+@Service
+@Profile("kafka")
+public class KafkaMessageQueueService implements MessageQueueService {
+    // Kafka-specific implementation
+}
+```
+
+### **Database Adapters**
+
+**Current: MySQL/JPA Adapter**
+```java
+@Repository
+public class JpaNotificationQueryRepository implements NotificationQueryRepository {
+    // JPA-specific implementation
+}
+```
+
+**Future: MongoDB Adapter**
+```java
+@Repository
+@Profile("mongodb")
+public class MongoNotificationQueryRepository implements NotificationQueryRepository {
+    // MongoDB-specific implementation
+}
+```
 
 ## 🚀 Features
 
 - **High Performance**: Processes 100,000+ notifications per minute using Spring Batch chunk processing
 - **Scalable Architecture**: Designed to handle millions of users and hundreds of millions of notifications daily
+- **Technology Agnostic**: Easy to swap databases, message queues, and other external systems
 - **Fault Tolerant**: Built-in retry mechanisms, skip logic, and error handling
 - **Monitoring Ready**: Integrated with Micrometer and Prometheus for comprehensive monitoring
-- **Cron Expression Support**: Advanced cron parsing and next execution calculation
-- **AWS SQS Integration**: Efficient batch sending to AWS SQS FIFO queues
-- **Database Optimized**: Connection pooling and batch operations for optimal database performance
+- **Lombok Integration**: Clean, concise code with automatic getter/setter generation
+- **MapStruct Mapping**: Type-safe mapping between domain models and DTOs
 
-## 🏗️ Architecture
+## 📊 Performance Metrics
 
-### Original vs New Architecture
+### Throughput Comparison
 
-**Original (Bash Script)**:
-- Sequential processing: ~1,000 notifications/minute
-- Single-threaded execution
-- Limited error handling
-- No monitoring capabilities
-
-**New (Spring Batch)**:
-- Chunk processing: 100,000+ notifications/minute
-- Multi-threaded parallel execution
-- Comprehensive fault tolerance
-- Full monitoring and metrics
-
-### Components
-
-1. **Reader**: `NotificationQueryReader` - Efficiently reads queries from database using pagination
-2. **Processor**: `NotificationQueryProcessor` - Processes queries, calculates next execution times
-3. **Writer**: `SQSNotificationWriter` - Sends messages to AWS SQS in batches
-4. **Scheduler**: `NotificationPollerScheduler` - Automated job execution based on cron schedule
-
-## 📋 Prerequisites
-
-- Java 17+
-- Maven 3.6+
-- MySQL 8.0+
-- AWS Account with SQS access
-- AWS credentials configured (via AWS CLI, IAM roles, or environment variables)
+| Metric | Bash Script | Spring Batch | Improvement |
+|--------|-------------|--------------|-------------|
+| Notifications/minute | ~1,000 | 100,000+ | 100x |
+| Concurrent Processing | 1 | 10+ threads | 10x |
+| Error Recovery | Manual | Automatic | ∞ |
+| Monitoring | None | Full metrics | ∞ |
 
 ## 🛠️ Configuration
 
@@ -55,7 +122,7 @@ spring:
     password: ${MYSQL_PASS}
 ```
 
-### AWS Configuration
+### Message Queue Configuration
 
 ```yaml
 aws:
@@ -75,15 +142,6 @@ batch:
     retry-limit: 3          # Max retry attempts
     thread-pool-size: 10    # Parallel processing threads
     throttle-limit: 5       # Concurrent chunks
-```
-
-### Scheduling Configuration
-
-```yaml
-scheduling:
-  poller:
-    cron: "0 */1 * * * *"   # Every minute
-    enabled: true
 ```
 
 ## 🚀 Getting Started
@@ -115,26 +173,67 @@ java -jar target/notification-batch-poller-1.0.0.jar
 curl -X POST http://localhost:8080/api/poller/trigger
 ```
 
-## 📊 Performance Metrics
+## 🔄 Technology Migration Examples
 
-### Throughput Comparison
+### Switching from SQS to Kafka
 
-| Metric | Bash Script | Spring Batch | Improvement |
-|--------|-------------|--------------|-------------|
-| Notifications/minute | ~1,000 | 100,000+ | 100x |
-| Concurrent Processing | 1 | 10+ threads | 10x |
-| Error Recovery | Manual | Automatic | ∞ |
-| Monitoring | None | Full metrics | ∞ |
+1. **Create Kafka Adapter**:
+```java
+@Service
+@Profile("kafka")
+public class KafkaMessageQueueService implements MessageQueueService {
+    // Implement Kafka-specific logic
+}
+```
 
-### Expected Performance
+2. **Update Configuration**:
+```yaml
+spring:
+  profiles:
+    active: kafka
+kafka:
+  bootstrap-servers: localhost:9092
+  topic: notifications
+```
 
-- **1M users**: ✅ Fully supported
-- **100M+ notifications/day**: ✅ ~1,200 notifications/second
-- **Latency**: <5 seconds for 10K notification batch
-- **Memory usage**: ~512MB-1GB (depending on chunk size)
-- **CPU usage**: Scales with thread pool size
+3. **No changes needed** in domain logic or batch processing!
 
-## 🔧 Monitoring
+### Switching from MySQL to PostgreSQL
+
+1. **Update Dependencies** in `pom.xml`
+2. **Update Configuration**:
+```yaml
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST}:5432/NotificamyDB
+    driver-class-name: org.postgresql.Driver
+```
+
+3. **Repository remains the same** - JPA handles the differences!
+
+## 🧪 Testing
+
+### Run Unit Tests
+
+```bash
+mvn test
+```
+
+### Run Integration Tests
+
+```bash
+mvn verify
+```
+
+### Test Coverage
+
+The project includes comprehensive tests for:
+- Domain logic (isolated from infrastructure)
+- Adapter implementations
+- Integration between layers
+- End-to-end batch processing
+
+## 📊 Monitoring
 
 ### Health Checks
 
@@ -155,75 +254,20 @@ curl http://localhost:8080/actuator/prometheus
 curl http://localhost:8080/actuator/batch
 ```
 
-## 🧪 Testing
+## 🔧 Development Guidelines
 
-### Run Unit Tests
+### Adding New Adapters
 
-```bash
-mvn test
-```
+1. **Define Port Interface** in `domain/port/outbound/`
+2. **Implement Adapter** in `infrastructure/adapter/outbound/`
+3. **Configure Bean** in `infrastructure/config/`
+4. **Add Tests** for the new adapter
 
-### Run Integration Tests
+### Adding New Use Cases
 
-```bash
-mvn verify
-```
-
-### Test Coverage
-
-The project includes comprehensive tests for:
-- Cron expression calculation
-- Message processing logic
-- Database operations
-- SQS integration
-
-## 📁 Project Structure
-
-```
-src/
-├── main/java/com/notifyme/
-│   ├── batch/
-│   │   ├── config/          # Batch job configuration
-│   │   ├── processor/       # Item processors
-│   │   ├── reader/          # Item readers
-│   │   └── writer/          # Item writers
-│   ├── config/              # Application configuration
-│   ├── controller/          # REST controllers
-│   ├── model/               # Data models
-│   ├── scheduler/           # Job schedulers
-│   └── service/             # Business services
-└── test/                    # Unit and integration tests
-```
-
-## 🔄 Migration from Bash Script
-
-The original Bash scripts have been moved to the `backup/` directory:
-- `backup/pollerAndEnqueuer.sh`
-- `backup/nextExecutionCalculator.sh`
-
-### Key Improvements
-
-1. **Performance**: 100x faster processing
-2. **Reliability**: Automatic retry and error handling
-3. **Scalability**: Multi-threaded processing
-4. **Monitoring**: Full observability
-5. **Maintainability**: Clean, testable Java code
-
-## 🚀 Scaling Recommendations
-
-### Phase 1: Current Implementation
-- Handles 1M users, 100M+ notifications/day
-- Single instance deployment
-
-### Phase 2: Horizontal Scaling
-- Multiple Spring Batch instances
-- Load balancing with database partitioning
-- Redis coordination for distributed processing
-
-### Phase 3: Advanced Optimizations
-- Reactive processing with WebFlux
-- Event-driven architecture with Kafka
-- Microservices decomposition
+1. **Define Use Case Interface** in `domain/port/inbound/`
+2. **Implement in Application Layer** in `application/service/`
+3. **Add Controller/Scheduler** in `infrastructure/adapter/inbound/`
 
 ## 📝 License
 
@@ -234,8 +278,9 @@ This project is the exclusive property of Alain Kiesse Bindele.
 
 **Alain Kiesse Bindele**
 - Email: alain.bindele@gmail.com
+- Architecture: Hexagonal Architecture with Spring Boot
 - Used AI: ChatGPT 4o
 
 ---
 
-*This Spring Batch implementation provides a solid foundation for scaling to millions of users while maintaining high performance and reliability.*
+*This Hexagonal Architecture implementation provides maximum flexibility for scaling to millions of users while maintaining clean, testable, and maintainable code.*
