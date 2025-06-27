@@ -35,13 +35,24 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             INNER JOIN users u ON q.user_id = u.id
             WHERE q.is_valid = 1 
               AND q.closed = 0
-              AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
+              AND (
+                  (q.next_execution IS NULL AND q.cron_params IS NOT NULL AND q.cron_params != '' AND q.cron_params != 'NULL') OR
+                  (q.next_execution <= NOW() AND q.cron_params IS NOT NULL AND q.cron_params != '' AND q.cron_params != 'NULL') OR
+                  (q.cron_params IS NULL OR q.cron_params = '' OR q.cron_params = 'NULL')
+              )
             ORDER BY q.id ASC
             LIMIT ? OFFSET ?
             """;
         
         List<NotificationQuery> queries = jdbcTemplate.query(sql, new NotificationQueryRowMapper(), pageSize, offset);
-        log.debug("Found {} queries due for execution (offset: {}, pageSize: {})", queries.size(), offset, pageSize);
+        
+        log.info("Found {} queries due for execution (offset: {}, pageSize: {})", queries.size(), offset, pageSize);
+        
+        // Log details for debugging
+        for (NotificationQuery query : queries) {
+            log.info("Query ID {}: cron_params='{}', next_execution={}, closed={}", 
+                    query.getId(), query.getCronParams(), query.getNextExecution(), query.isClosed());
+        }
         
         return queries;
     }
@@ -52,9 +63,9 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
         int updated = jdbcTemplate.update(sql, nextExecution, queryId);
         
         if (updated > 0) {
-            log.debug("Updated next_execution for query ID: {} to {}", queryId, nextExecution);
+            log.info("✅ Updated next_execution for query ID: {} to {}", queryId, nextExecution);
         } else {
-            log.warn("No query found with ID: {} for next_execution update", queryId);
+            log.warn("⚠️  No query found with ID: {} for next_execution update", queryId);
         }
     }
     
@@ -65,7 +76,11 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             FROM queries q 
             WHERE q.is_valid = 1 
               AND q.closed = 0
-              AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
+              AND (
+                  (q.next_execution IS NULL AND q.cron_params IS NOT NULL AND q.cron_params != '' AND q.cron_params != 'NULL') OR
+                  (q.next_execution <= NOW() AND q.cron_params IS NOT NULL AND q.cron_params != '' AND q.cron_params != 'NULL') OR
+                  (q.cron_params IS NULL OR q.cron_params = '' OR q.cron_params = 'NULL')
+              )
             """;
         
         Long count = jdbcTemplate.queryForObject(sql, Long.class);

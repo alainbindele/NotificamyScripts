@@ -44,29 +44,40 @@ public class NotificationProcessingService {
         
         log.info("▶️  Processing Query ID {}: {}", query.getId(), query.getPrompt());
         
-        // Calculate and update next execution time if cron parameters are provided
+        // Handle cron-based queries
         if (query.hasCronParams()) {
-            LocalDateTime baseTime = query.getNextExecution() != null ? 
-                query.getNextExecution() : query.getCreatedAt();
+            LocalDateTime baseTime = LocalDateTime.now(); // Always use current time as base
             
             LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(
                 query.getCronParams(), baseTime);
             
-            // Update next execution in database immediately
+            // Update next execution in database immediately to prevent re-processing
             try {
                 queryRepository.updateNextExecution(query.getId(), nextExecution);
                 query.setNextExecution(nextExecution);
                 log.info("⏭  Updated next execution for Query ID {} to: {}", query.getId(), nextExecution);
             } catch (Exception e) {
-                log.error("Failed to update next execution for query ID: {}", query.getId(), e);
-                // Continue processing even if update fails
+                log.error("❌ Failed to update next execution for query ID: {}", query.getId(), e);
+                // Don't continue processing if we can't update the next execution
+                // This prevents infinite loops
+                return null;
+            }
+        } else {
+            // For queries without cron params, set next_execution to far future to prevent re-processing
+            LocalDateTime farFuture = LocalDateTime.now().plusYears(100);
+            try {
+                queryRepository.updateNextExecution(query.getId(), farFuture);
+                log.info("🔒 Set far future execution for one-time Query ID {}", query.getId());
+            } catch (Exception e) {
+                log.error("❌ Failed to update execution time for one-time query ID: {}", query.getId(), e);
+                return null;
             }
         }
         
         // Convert to domain message
         NotificationMessage message = NotificationMessage.fromQuery(query);
         
-        log.debug("✅ Created notification message for query ID: {}", query.getId());
+        log.info("✅ Created notification message for query ID: {}", query.getId());
         return message;
     }
 }
