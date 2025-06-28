@@ -35,6 +35,7 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             INNER JOIN users u ON q.user_id = u.id
             WHERE q.is_valid = 1 
               AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
+              AND q.closed = 0
             ORDER BY q.id ASC
             LIMIT ? OFFSET ?
             """;
