@@ -26,6 +26,7 @@ public class NotificationQuery {
     private Boolean closed;
     private LocalDateTime validFrom;
     private LocalDateTime validTo;
+    private String timezone; // New field for per-query timezone
     
     // User information
     private String userEmail;
@@ -54,7 +55,34 @@ public class NotificationQuery {
     }
     
     /**
+     * Get the timezone for this query, defaulting to UTC if not specified
+     * 
+     * @return ZoneId for this query
+     */
+    public java.time.ZoneId getQueryZoneId() {
+        if (timezone != null && !timezone.trim().isEmpty() && !"NULL".equals(timezone)) {
+            try {
+                return java.time.ZoneId.of(timezone);
+            } catch (Exception e) {
+                // Log warning and fallback to UTC
+                return java.time.ZoneId.of("UTC");
+            }
+        }
+        return java.time.ZoneId.of("UTC"); // Default to UTC
+    }
+    
+    /**
+     * Check if this query has a specific timezone configured
+     * 
+     * @return true if timezone is configured
+     */
+    public boolean hasTimezone() {
+        return timezone != null && !timezone.trim().isEmpty() && !"NULL".equals(timezone);
+    }
+    
+    /**
      * Check if the query is within its validity period at the given time
+     * This method assumes the checkTime is in UTC (as stored in database)
      * 
      * @param checkTime The time to check against
      * @return true if the query is valid at the given time
@@ -80,10 +108,12 @@ public class NotificationQuery {
     
     /**
      * Check if the query is currently within its validity period
+     * This uses current UTC time for consistency with database
      * 
      * @return true if the query is valid now
      */
     public boolean isCurrentlyValid() {
-        return isWithinValidityPeriod(LocalDateTime.now());
+        // Use UTC time for consistency with database storage
+        return isWithinValidityPeriod(java.time.LocalDateTime.now(java.time.ZoneId.of("UTC")));
     }
 }

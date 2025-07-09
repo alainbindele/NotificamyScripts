@@ -35,7 +35,7 @@ public class NotificationProcessingService {
         }
         
         // Check validity period
-        LocalDateTime now = LocalDateTime.now(); // This will use the configured timezone
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneId.of("UTC")); // Use UTC for consistency
         if (!query.isWithinValidityPeriod(now)) {
             log.info("⏭  Skipping Query ID {}: query is outside validity period (valid_from: {}, valid_to: {})", 
                     query.getId(), query.getValidFrom(), query.getValidTo());
@@ -48,19 +48,21 @@ public class NotificationProcessingService {
             return null;
         }
         
-        log.info("▶️  Processing Query ID {}: {} (valid_from: {}, valid_to: {})", 
-                query.getId(), query.getPrompt(), query.getValidFrom(), query.getValidTo());
+        log.info("▶️  Processing Query ID {}: {} (timezone: {}, valid_from: {}, valid_to: {})", 
+                query.getId(), query.getPrompt(), query.getTimezone(), query.getValidFrom(), query.getValidTo());
         
         // Calculate next execution time if cron parameters are provided
         if (query.hasCronParams()) {
             LocalDateTime baseTime = query.getNextExecution() != null ? 
                 query.getNextExecution() : query.getCreatedAt();
             
+            // Use query-specific timezone for cron calculation
             LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(
-                query.getCronParams(), baseTime);
+                query.getCronParams(), baseTime, query.getQueryZoneId());
             
             query.setNextExecution(nextExecution);
-            log.info("⏭  Next execution for Query ID {}: {}", query.getId(), nextExecution);
+            log.info("⏭  Next execution for Query ID {} (timezone: {}): {} UTC", 
+                    query.getId(), query.getTimezone(), nextExecution);
         }
         
         // Convert to domain message

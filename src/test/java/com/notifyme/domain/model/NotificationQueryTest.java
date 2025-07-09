@@ -79,4 +79,49 @@ class NotificationQueryTest {
 
         assertFalse(query.isCurrentlyValid());
     }
+
+    @Test
+    void testGetQueryZoneId_ValidTimezone() {
+        NotificationQuery query = NotificationQuery.builder()
+            .timezone("Europe/Rome")
+            .build();
+
+        assertEquals(java.time.ZoneId.of("Europe/Rome"), query.getQueryZoneId());
+    }
+
+    @Test
+    void testGetQueryZoneId_InvalidTimezone() {
+        NotificationQuery query = NotificationQuery.builder()
+            .timezone("Invalid/Timezone")
+            .build();
+
+        assertEquals(java.time.ZoneId.of("UTC"), query.getQueryZoneId()); // Should fallback to UTC
+    }
+
+    @Test
+    void testGetQueryZoneId_NullTimezone() {
+        NotificationQuery query = NotificationQuery.builder()
+            .timezone(null)
+            .build();
+
+        assertEquals(java.time.ZoneId.of("UTC"), query.getQueryZoneId()); // Should default to UTC
+    }
+
+    @Test
+    void testHasTimezone() {
+        NotificationQuery queryWithTimezone = NotificationQuery.builder()
+            .timezone("Europe/Rome")
+            .build();
+        assertTrue(queryWithTimezone.hasTimezone());
+
+        NotificationQuery queryWithoutTimezone = NotificationQuery.builder()
+            .timezone(null)
+            .build();
+        assertFalse(queryWithoutTimezone.hasTimezone());
+
+        NotificationQuery queryWithEmptyTimezone = NotificationQuery.builder()
+            .timezone("")
+            .build();
+        assertFalse(queryWithEmptyTimezone.hasTimezone());
+    }
 }

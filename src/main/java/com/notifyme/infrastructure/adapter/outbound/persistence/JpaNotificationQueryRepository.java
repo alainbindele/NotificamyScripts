@@ -29,7 +29,7 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
     public List<NotificationQuery> findQueriesDueForExecution(int pageSize, int offset) {
         String sql = """
             SELECT q.id, q.prompt, q.cron_params, q.next_execution, q.created_at, 
-                   q.user_id, q.is_valid, q.closed, q.valid_from, q.valid_to,
+                   q.user_id, q.is_valid, q.closed, q.valid_from, q.valid_to, q.timezone,
                    u.email, u.discord_webhook, u.slack_webhook, u.whatsapp_phone
             FROM queries q 
             INNER JOIN users u ON q.user_id = u.id
@@ -95,6 +95,7 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
                     rs.getTimestamp("valid_from").toLocalDateTime() : null)
                 .validTo(rs.getTimestamp("valid_to") != null ? 
                     rs.getTimestamp("valid_to").toLocalDateTime() : null)
+                .timezone(rs.getString("timezone"))
                 .userEmail(rs.getString("email"))
                 .discordWebhook(rs.getString("discord_webhook"))
                 .slackWebhook(rs.getString("slack_webhook"))

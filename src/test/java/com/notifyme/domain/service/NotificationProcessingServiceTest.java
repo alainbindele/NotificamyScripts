@@ -43,7 +43,7 @@ class NotificationProcessingServiceTest {
 
     @Test
     void testProcessQuery_ValidQuery() {
-        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class)))
+        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class), any(java.time.ZoneId.class)))
             .thenReturn(LocalDateTime.now().plusMinutes(5));
 
         NotificationMessage result = processingService.processQuery(testQuery);
@@ -87,7 +87,7 @@ class NotificationProcessingServiceTest {
         testQuery.setSlackWebhook("https://slack.com/webhook");
         testQuery.setWhatsappPhone("+1234567890");
 
-        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class)))
+        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class), any(java.time.ZoneId.class)))
             .thenReturn(LocalDateTime.now().plusMinutes(5));
 
         NotificationMessage result = processingService.processQuery(testQuery);
@@ -121,7 +121,7 @@ class NotificationProcessingServiceTest {
         testQuery.setValidFrom(LocalDateTime.now().minusHours(1)); // Valid from 1 hour ago
         testQuery.setValidTo(LocalDateTime.now().plusHours(1)); // Valid until 1 hour from now
 
-        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class)))
+        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class), any(java.time.ZoneId.class)))
             .thenReturn(LocalDateTime.now().plusMinutes(5));
 
         NotificationMessage result = processingService.processQuery(testQuery);
@@ -136,11 +136,50 @@ class NotificationProcessingServiceTest {
         testQuery.setValidFrom(null);
         testQuery.setValidTo(null);
 
-        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class)))
+        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class), any(java.time.ZoneId.class)))
             .thenReturn(LocalDateTime.now().plusMinutes(5));
 
         NotificationMessage result = processingService.processQuery(testQuery);
 
         assertNotNull(result); // Should process queries with no validity constraints
+    }
+
+    @Test
+    void testProcessQuery_WithSpecificTimezone() {
+        testQuery.setTimezone("Europe/Rome");
+        
+        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class), any(java.time.ZoneId.class)))
+            .thenReturn(LocalDateTime.now().plusMinutes(5));
+
+        NotificationMessage result = processingService.processQuery(testQuery);
+
+        assertNotNull(result);
+        assertEquals(testQuery.getId(), result.getQueryId());
+        
+        // Verify that the cron calculation was called with the correct timezone
+        org.mockito.Mockito.verify(cronCalculatorService).calculateNextExecution(
+            anyString(), 
+            any(LocalDateTime.class), 
+            org.mockito.ArgumentMatchers.eq(java.time.ZoneId.of("Europe/Rome"))
+        );
+    }
+
+    @Test
+    void testProcessQuery_WithInvalidTimezone() {
+        testQuery.setTimezone("Invalid/Timezone");
+        
+        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class), any(java.time.ZoneId.class)))
+            .thenReturn(LocalDateTime.now().plusMinutes(5));
+
+        NotificationMessage result = processingService.processQuery(testQuery);
+
+        assertNotNull(result);
+        
+        // Verify that the cron calculation was called with UTC as fallback
+        org.mockito.Mockito.verify(cronCalculatorService).calculateNextExecution(
+            anyString(), 
+            any(LocalDateTime.class), 
+            org.mockito.ArgumentMatchers.eq(java.time.ZoneId.of("UTC"))
+        );
     }
 }

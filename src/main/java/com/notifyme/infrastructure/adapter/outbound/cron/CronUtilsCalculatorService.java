@@ -33,43 +33,44 @@ public class CronUtilsCalculatorService implements CronCalculatorService {
     }
     
     @Override
-    public LocalDateTime calculateNextExecution(String cronExpression, LocalDateTime baseTime) {
+    public LocalDateTime calculateNextExecution(String cronExpression, LocalDateTime baseTime, ZoneId timezone) {
         try {
-            log.debug("Calculating next execution for cron: {} from base time: {}", 
-                     cronExpression, baseTime);
+            log.debug("Calculating next execution for cron: {} from base time: {} in timezone: {}", 
+                     cronExpression, baseTime, timezone);
             
             Cron cron = cronParser.parse(cronExpression);
             ExecutionTime executionTime = ExecutionTime.forCron(cron);
             
-            // Use configured application timezone instead of system default
-            ZonedDateTime baseZoned = baseTime.atZone(timezoneConfig.getApplicationZoneId());
+            // Convert UTC base time to the query's timezone for calculation
+            ZonedDateTime baseZoned = baseTime.atZone(ZoneId.of("UTC")).withZoneSameInstant(timezone);
             Optional<ZonedDateTime> nextExecution = executionTime.nextExecution(baseZoned);
             
             if (nextExecution.isPresent()) {
-                LocalDateTime result = nextExecution.get().toLocalDateTime();
+                // Convert result back to UTC for storage
+                LocalDateTime result = nextExecution.get().withZoneSameInstant(ZoneId.of("UTC")).toLocalDateTime();
                 
                 // Ensure the next execution is in the future
-                LocalDateTime now = LocalDateTime.now();
+                LocalDateTime now = LocalDateTime.now(ZoneId.of("UTC"));
                 while (result.isBefore(now) || result.isEqual(now)) {
-                    ZonedDateTime resultZoned = result.atZone(timezoneConfig.getApplicationZoneId());
+                    ZonedDateTime resultZoned = result.atZone(ZoneId.of("UTC")).withZoneSameInstant(timezone);
                     Optional<ZonedDateTime> nextNext = executionTime.nextExecution(resultZoned);
                     if (nextNext.isPresent()) {
-                        result = nextNext.get().toLocalDateTime();
+                        result = nextNext.get().withZoneSameInstant(ZoneId.of("UTC")).toLocalDateTime();
                     } else {
                         break;
                     }
                 }
                 
-                log.debug("Next execution calculated: {}", result);
+                log.debug("Next execution calculated: {} UTC (from timezone: {})", result, timezone);
                 return result;
             } else {
-                log.warn("Could not calculate next execution for cron: {}", cronExpression);
+                log.warn("Could not calculate next execution for cron: {} in timezone: {}", cronExpression, timezone);
                 return baseTime.plusMinutes(5); // Fallback: 5 minutes from base time
             }
             
         } catch (Exception e) {
-            log.error("Error calculating next execution for cron: {} from base time: {}", 
-                     cronExpression, baseTime, e);
+            log.error("Error calculating next execution for cron: {} from base time: {} in timezone: {}", 
+                     cronExpression, baseTime, timezone, e);
             return baseTime.plusMinutes(5); // Fallback: 5 minutes from base time
         }
     }

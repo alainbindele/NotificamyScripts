@@ -34,8 +34,9 @@ class CronUtilsCalculatorServiceTest {
         setUp();
         String cronExpression = "0 * * * * *"; // Every minute
         LocalDateTime baseTime = LocalDateTime.of(2025, 1, 1, 10, 30, 0);
+        ZoneId timezone = ZoneId.of("UTC");
         
-        LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(cronExpression, baseTime);
+        LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(cronExpression, baseTime, timezone);
         
         assertNotNull(nextExecution);
         assertTrue(nextExecution.isAfter(baseTime));
@@ -43,17 +44,34 @@ class CronUtilsCalculatorServiceTest {
 
     @Test
     void testCalculateNextExecution_Every5Minutes() {
+        setUp();
         String cronExpression = "0 */5 * * * *"; // Every 5 minutes
         LocalDateTime baseTime = LocalDateTime.of(2025, 1, 1, 10, 30, 0);
+        ZoneId timezone = ZoneId.of("UTC");
         
-        LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(cronExpression, baseTime);
+        LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(cronExpression, baseTime, timezone);
         
         assertNotNull(nextExecution);
         assertTrue(nextExecution.isAfter(baseTime));
     }
 
     @Test
+    void testCalculateNextExecution_DifferentTimezone() {
+        setUp();
+        String cronExpression = "0 0 12 * * *"; // Every day at 12:00
+        LocalDateTime baseTime = LocalDateTime.of(2025, 1, 1, 10, 0, 0); // 10:00 UTC
+        ZoneId timezone = ZoneId.of("Europe/Rome"); // UTC+1
+        
+        LocalDateTime nextExecution = cronCalculatorService.calculateNextExecution(cronExpression, baseTime, timezone);
+        
+        assertNotNull(nextExecution);
+        assertTrue(nextExecution.isAfter(baseTime));
+        // The result should be in UTC, but calculated considering Rome timezone
+    }
+
+    @Test
     void testIsValidCronExpression_Valid() {
+        setUp();
         assertTrue(cronCalculatorService.isValidCronExpression("0 * * * * *"));
         assertTrue(cronCalculatorService.isValidCronExpression("0 */5 * * * *"));
         assertTrue(cronCalculatorService.isValidCronExpression("0 0 12 * * *"));
@@ -61,6 +79,7 @@ class CronUtilsCalculatorServiceTest {
 
     @Test
     void testIsValidCronExpression_Invalid() {
+        setUp();
         assertFalse(cronCalculatorService.isValidCronExpression("invalid"));
         assertFalse(cronCalculatorService.isValidCronExpression(""));
         assertFalse(cronCalculatorService.isValidCronExpression("* * * *"));

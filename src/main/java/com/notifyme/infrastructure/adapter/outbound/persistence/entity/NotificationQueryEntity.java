@@ -49,4 +49,7 @@ public class NotificationQueryEntity {
     
     @Column(name = "valid_to")
     private LocalDateTime validTo;
+    
+    @Column(name = "timezone")
+    private String timezone;
 }

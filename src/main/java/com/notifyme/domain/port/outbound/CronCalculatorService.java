@@ -8,13 +8,25 @@ import java.time.LocalDateTime;
 public interface CronCalculatorService {
     
     /**
-     * Calculate the next execution time from a cron expression
+     * Calculate the next execution time from a cron expression in a specific timezone
+     * 
+     * @param cronExpression The cron expression
+     * @param baseTime The base time to calculate from
+     * @param timezone The timezone to use for calculation
+     * @return The next execution time
+     */
+    LocalDateTime calculateNextExecution(String cronExpression, LocalDateTime baseTime, java.time.ZoneId timezone);
+    
+    /**
+     * Calculate the next execution time from a cron expression using UTC timezone
      * 
      * @param cronExpression The cron expression
      * @param baseTime The base time to calculate from
      * @return The next execution time
      */
-    LocalDateTime calculateNextExecution(String cronExpression, LocalDateTime baseTime);
+    default LocalDateTime calculateNextExecution(String cronExpression, LocalDateTime baseTime) {
+        return calculateNextExecution(cronExpression, baseTime, java.time.ZoneId.of("UTC"));
+    }
     
     /**
      * Validate if a cron expression is valid
