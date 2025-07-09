@@ -6,7 +6,9 @@ import com.cronutils.model.definition.CronDefinitionBuilder;
 import com.cronutils.model.time.ExecutionTime;
 import com.cronutils.parser.CronParser;
 import com.notifyme.domain.port.outbound.CronCalculatorService;
+import com.notifyme.infrastructure.config.TimezoneConfig;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,9 +24,12 @@ import java.util.Optional;
 public class CronUtilsCalculatorService implements CronCalculatorService {
     
     private final CronParser cronParser;
+    private final TimezoneConfig timezoneConfig;
     
-    public CronUtilsCalculatorService() {
+    @Autowired
+    public CronUtilsCalculatorService(TimezoneConfig timezoneConfig) {
         this.cronParser = new CronParser(CronDefinitionBuilder.instanceDefinitionFor(CronType.UNIX));
+        this.timezoneConfig = timezoneConfig;
     }
     
     @Override
@@ -36,7 +41,8 @@ public class CronUtilsCalculatorService implements CronCalculatorService {
             Cron cron = cronParser.parse(cronExpression);
             ExecutionTime executionTime = ExecutionTime.forCron(cron);
             
-            ZonedDateTime baseZoned = baseTime.atZone(ZoneId.systemDefault());
+            // Use configured application timezone instead of system default
+            ZonedDateTime baseZoned = baseTime.atZone(timezoneConfig.getApplicationZoneId());
             Optional<ZonedDateTime> nextExecution = executionTime.nextExecution(baseZoned);
             
             if (nextExecution.isPresent()) {
@@ -45,7 +51,7 @@ public class CronUtilsCalculatorService implements CronCalculatorService {
                 // Ensure the next execution is in the future
                 LocalDateTime now = LocalDateTime.now();
                 while (result.isBefore(now) || result.isEqual(now)) {
-                    ZonedDateTime resultZoned = result.atZone(ZoneId.systemDefault());
+                    ZonedDateTime resultZoned = result.atZone(timezoneConfig.getApplicationZoneId());
                     Optional<ZonedDateTime> nextNext = executionTime.nextExecution(resultZoned);
                     if (nextNext.isPresent()) {
                         result = nextNext.get().toLocalDateTime();

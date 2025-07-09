@@ -1,21 +1,37 @@
 package com.notifyme.infrastructure.adapter.outbound.cron;
 
+import com.notifyme.infrastructure.config.TimezoneConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @TestPropertySource(locations = "classpath:application-test.properties")
+@ExtendWith(MockitoExtension.class)
 class CronUtilsCalculatorServiceTest {
 
-    private final CronUtilsCalculatorService cronCalculatorService = new CronUtilsCalculatorService();
+    @Mock
+    private TimezoneConfig timezoneConfig;
+    
+    private CronUtilsCalculatorService cronCalculatorService;
+    
+    void setUp() {
+        when(timezoneConfig.getApplicationZoneId()).thenReturn(ZoneId.of("UTC"));
+        cronCalculatorService = new CronUtilsCalculatorService(timezoneConfig);
+    }
 
     @Test
     void testCalculateNextExecution_EveryMinute() {
+        setUp();
         String cronExpression = "0 * * * * *"; // Every minute
         LocalDateTime baseTime = LocalDateTime.of(2025, 1, 1, 10, 30, 0);
         

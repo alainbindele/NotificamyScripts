@@ -35,7 +35,8 @@ public class NotificationProcessingService {
         }
         
         // Check validity period
-        if (!query.isCurrentlyValid()) {
+        LocalDateTime now = LocalDateTime.now(); // This will use the configured timezone
+        if (!query.isWithinValidityPeriod(now)) {
             log.info("⏭  Skipping Query ID {}: query is outside validity period (valid_from: {}, valid_to: {})", 
                     query.getId(), query.getValidFrom(), query.getValidTo());
             return null;

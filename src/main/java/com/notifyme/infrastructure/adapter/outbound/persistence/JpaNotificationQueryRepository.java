@@ -34,10 +34,10 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             FROM queries q 
             INNER JOIN users u ON q.user_id = u.id
             WHERE q.is_valid = 1 
-              AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
+              AND (q.next_execution <= UTC_TIMESTAMP() OR q.next_execution IS NULL)
               AND q.closed = 0
-              AND (q.valid_from IS NULL OR q.valid_from <= NOW())
-              AND (q.valid_to IS NULL OR q.valid_to >= NOW())
+              AND (q.valid_from IS NULL OR q.valid_from <= UTC_TIMESTAMP())
+              AND (q.valid_to IS NULL OR q.valid_to >= UTC_TIMESTAMP())
             ORDER BY q.id ASC
             LIMIT ? OFFSET ?
             """;
@@ -63,10 +63,10 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             SELECT COUNT(*) 
             FROM queries q 
             WHERE q.is_valid = 1 
-              AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
+              AND (q.next_execution <= UTC_TIMESTAMP() OR q.next_execution IS NULL)
               AND q.closed = 0
-              AND (q.valid_from IS NULL OR q.valid_from <= NOW())
-              AND (q.valid_to IS NULL OR q.valid_to >= NOW())
+              AND (q.valid_from IS NULL OR q.valid_from <= UTC_TIMESTAMP())
+              AND (q.valid_to IS NULL OR q.valid_to >= UTC_TIMESTAMP())
             """;
         
         Long count = jdbcTemplate.queryForObject(sql, Long.class);
