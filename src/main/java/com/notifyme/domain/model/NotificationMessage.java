@@ -20,6 +20,7 @@ public class NotificationMessage {
     private String userDiscordWebhook;
     private String userSlackWebhook;
     private String userPhone;
+    private java.time.LocalDateTime nextExecution; // For updating the database
     
     public static NotificationMessage fromQuery(NotificationQuery query) {
         return NotificationMessage.builder()
@@ -29,6 +30,7 @@ public class NotificationMessage {
             .userDiscordWebhook(sanitizeWebhook(query.getDiscordWebhook()))
             .userSlackWebhook(sanitizeWebhook(query.getSlackWebhook()))
             .userPhone(sanitizePhone(query.getWhatsappPhone()))
+            .nextExecution(query.getNextExecution())
             .build();
     }
     
