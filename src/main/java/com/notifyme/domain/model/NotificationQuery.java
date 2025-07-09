@@ -24,6 +24,8 @@ public class NotificationQuery {
     private Long userId;
     private Boolean isValid;
     private Boolean closed;
+    private LocalDateTime validFrom;
+    private LocalDateTime validTo;
     
     // User information
     private String userEmail;
@@ -49,5 +51,39 @@ public class NotificationQuery {
     
     public boolean hasCronParams() {
         return cronParams != null && !cronParams.trim().isEmpty() && !"NULL".equals(cronParams);
+    }
+    
+    /**
+     * Check if the query is within its validity period at the given time
+     * 
+     * @param checkTime The time to check against
+     * @return true if the query is valid at the given time
+     */
+    public boolean isWithinValidityPeriod(LocalDateTime checkTime) {
+        // If no validity constraints are set, it's always valid
+        if (validFrom == null && validTo == null) {
+            return true;
+        }
+        
+        // Check valid_from constraint
+        if (validFrom != null && checkTime.isBefore(validFrom)) {
+            return false;
+        }
+        
+        // Check valid_to constraint
+        if (validTo != null && checkTime.isAfter(validTo)) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Check if the query is currently within its validity period
+     * 
+     * @return true if the query is valid now
+     */
+    public boolean isCurrentlyValid() {
+        return isWithinValidityPeriod(LocalDateTime.now());
     }
 }

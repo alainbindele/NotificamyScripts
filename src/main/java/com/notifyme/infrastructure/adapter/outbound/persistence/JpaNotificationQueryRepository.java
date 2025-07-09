@@ -29,13 +29,15 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
     public List<NotificationQuery> findQueriesDueForExecution(int pageSize, int offset) {
         String sql = """
             SELECT q.id, q.prompt, q.cron_params, q.next_execution, q.created_at, 
-                   q.user_id, q.is_valid, q.closed,
+                   q.user_id, q.is_valid, q.closed, q.valid_from, q.valid_to,
                    u.email, u.discord_webhook, u.slack_webhook, u.whatsapp_phone
             FROM queries q 
             INNER JOIN users u ON q.user_id = u.id
             WHERE q.is_valid = 1 
               AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
               AND q.closed = 0
+              AND (q.valid_from IS NULL OR q.valid_from <= NOW())
+              AND (q.valid_to IS NULL OR q.valid_to >= NOW())
             ORDER BY q.id ASC
             LIMIT ? OFFSET ?
             """;
@@ -62,6 +64,9 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
             FROM queries q 
             WHERE q.is_valid = 1 
               AND (q.next_execution <= NOW() OR q.next_execution IS NULL)
+              AND q.closed = 0
+              AND (q.valid_from IS NULL OR q.valid_from <= NOW())
+              AND (q.valid_to IS NULL OR q.valid_to >= NOW())
             """;
         
         Long count = jdbcTemplate.queryForObject(sql, Long.class);
@@ -86,6 +91,10 @@ public class JpaNotificationQueryRepository implements NotificationQueryReposito
                 .userId(rs.getLong("user_id"))
                 .isValid(rs.getBoolean("is_valid"))
                 .closed(rs.getBoolean("closed"))
+                .validFrom(rs.getTimestamp("valid_from") != null ? 
+                    rs.getTimestamp("valid_from").toLocalDateTime() : null)
+                .validTo(rs.getTimestamp("valid_to") != null ? 
+                    rs.getTimestamp("valid_to").toLocalDateTime() : null)
                 .userEmail(rs.getString("email"))
                 .discordWebhook(rs.getString("discord_webhook"))
                 .slackWebhook(rs.getString("slack_webhook"))

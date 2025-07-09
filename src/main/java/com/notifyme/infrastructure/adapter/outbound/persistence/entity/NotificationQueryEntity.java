@@ -43,4 +43,10 @@ public class NotificationQueryEntity {
     
     @Column(name = "closed")
     private Boolean closed;
+    
+    @Column(name = "valid_from")
+    private LocalDateTime validFrom;
+    
+    @Column(name = "valid_to")
+    private LocalDateTime validTo;
 }

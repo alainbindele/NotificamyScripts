@@ -34,13 +34,21 @@ public class NotificationProcessingService {
             return null;
         }
         
+        // Check validity period
+        if (!query.isCurrentlyValid()) {
+            log.info("⏭  Skipping Query ID {}: query is outside validity period (valid_from: {}, valid_to: {})", 
+                    query.getId(), query.getValidFrom(), query.getValidTo());
+            return null;
+        }
+        
         // Validate required fields
         if (!query.hasValidPrompt() || !query.hasValidEmail()) {
             log.warn("Skipping query ID {} due to missing prompt or email", query.getId());
             return null;
         }
         
-        log.info("▶️  Processing Query ID {}: {}", query.getId(), query.getPrompt());
+        log.info("▶️  Processing Query ID {}: {} (valid_from: {}, valid_to: {})", 
+                query.getId(), query.getPrompt(), query.getValidFrom(), query.getValidTo());
         
         // Calculate next execution time if cron parameters are provided
         if (query.hasCronParams()) {

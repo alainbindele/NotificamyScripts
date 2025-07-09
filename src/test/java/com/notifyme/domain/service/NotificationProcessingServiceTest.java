@@ -97,4 +97,50 @@ class NotificationProcessingServiceTest {
         assertEquals("https://slack.com/webhook", result.getUserSlackWebhook());
         assertEquals("+1234567890", result.getUserPhone());
     }
+
+    @Test
+    void testProcessQuery_ValidFromFuture() {
+        testQuery.setValidFrom(LocalDateTime.now().plusHours(1)); // Valid from 1 hour in the future
+
+        NotificationMessage result = processingService.processQuery(testQuery);
+
+        assertNull(result); // Should skip queries not yet valid
+    }
+
+    @Test
+    void testProcessQuery_ValidToPast() {
+        testQuery.setValidTo(LocalDateTime.now().minusHours(1)); // Valid until 1 hour ago
+
+        NotificationMessage result = processingService.processQuery(testQuery);
+
+        assertNull(result); // Should skip queries that are no longer valid
+    }
+
+    @Test
+    void testProcessQuery_WithinValidityPeriod() {
+        testQuery.setValidFrom(LocalDateTime.now().minusHours(1)); // Valid from 1 hour ago
+        testQuery.setValidTo(LocalDateTime.now().plusHours(1)); // Valid until 1 hour from now
+
+        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class)))
+            .thenReturn(LocalDateTime.now().plusMinutes(5));
+
+        NotificationMessage result = processingService.processQuery(testQuery);
+
+        assertNotNull(result); // Should process queries within validity period
+        assertEquals(testQuery.getId(), result.getQueryId());
+    }
+
+    @Test
+    void testProcessQuery_NoValidityConstraints() {
+        // No valid_from or valid_to set (both null)
+        testQuery.setValidFrom(null);
+        testQuery.setValidTo(null);
+
+        when(cronCalculatorService.calculateNextExecution(anyString(), any(LocalDateTime.class)))
+            .thenReturn(LocalDateTime.now().plusMinutes(5));
+
+        NotificationMessage result = processingService.processQuery(testQuery);
+
+        assertNotNull(result); // Should process queries with no validity constraints
+    }
 }
